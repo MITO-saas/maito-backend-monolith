@@ -10,4 +10,7 @@
 4. Postman and Contracts:
    - Every exposed Controller must have a corresponding OpenAPI specification and exported Postman collection JSON.
 5. State Tracking:
-   - Update PROGRESS.md after every functional module or schema migration.
+   - Keep PROGRESS.md in sync after every functional module or schema migration.
+   - Use `python scripts/status_verifier.py --auto` to reconcile the Status column with the
+     repository — never hand-edit the Status column. Read PROGRESS.md before planning the next
+     piece of work; it is the source of truth for what is done vs. pending.
