@@ -1,6 +1,7 @@
 package com.maito.tenant.provisioning;
 
 import com.maito.shared.exception.BusinessException;
+import com.maito.shared.exception.ErrorCode;
 import com.maito.tenant.api.dto.ProvisionTenantRequest;
 import com.maito.tenant.api.dto.TenantDetailsResponse;
 import com.maito.tenant.datasource.HikariPoolManager;
@@ -64,7 +65,7 @@ class TenantProvisioningServiceTest {
     }
 
     @Test
-    @DisplayName("Throws BusinessException when tenant ID already exists")
+    @DisplayName("Throws IDEMPOTENCY_CONFLICT (HTTP 409) when tenant ID already exists")
     void shouldThrowWhenTenantIdExists() {
         ProvisionTenantRequest request = new ProvisionTenantRequest(
                 "mito_crunch", "mitocrunch", "Mito Crunch Ltd", "store.mitocrunch.com", "IN", "INR", Map.of()
@@ -74,13 +75,17 @@ class TenantProvisioningServiceTest {
 
         assertThatThrownBy(() -> provisioningService.provisionTenant(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Tenant ID already exists");
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
+                    assertThat(be.getMessage()).contains("Tenant ID already exists");
+                });
 
         verify(tenantRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Throws BusinessException when tenant slug already exists")
+    @DisplayName("Throws IDEMPOTENCY_CONFLICT (HTTP 409) when tenant slug already exists")
     void shouldThrowWhenTenantSlugExists() {
         ProvisionTenantRequest request = new ProvisionTenantRequest(
                 "mito_crunch", "mitocrunch", "Mito Crunch Ltd", "store.mitocrunch.com", "IN", "INR", Map.of()
@@ -91,11 +96,15 @@ class TenantProvisioningServiceTest {
 
         assertThatThrownBy(() -> provisioningService.provisionTenant(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Tenant Slug already exists");
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
+                    assertThat(be.getMessage()).contains("Tenant Slug already exists");
+                });
     }
 
     @Test
-    @DisplayName("Throws BusinessException when primary domain is already registered")
+    @DisplayName("Throws IDEMPOTENCY_CONFLICT (HTTP 409) when primary domain is already registered")
     void shouldThrowWhenDomainExists() {
         ProvisionTenantRequest request = new ProvisionTenantRequest(
                 "mito_crunch", "mitocrunch", "Mito Crunch Ltd", "store.mitocrunch.com", "IN", "INR", Map.of()
@@ -107,7 +116,11 @@ class TenantProvisioningServiceTest {
 
         assertThatThrownBy(() -> provisioningService.provisionTenant(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("Domain already registered");
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(ErrorCode.IDEMPOTENCY_CONFLICT);
+                    assertThat(be.getMessage()).contains("Domain already registered");
+                });
     }
 
     @Test

@@ -106,4 +106,25 @@ class DynamicRoutingIntegrationTest {
         routingDataSource.unregisterTenantDataSource("tenant_a");
         assertThat(routingDataSource.hasTenantDataSource("tenant_a")).isFalse();
     }
+
+    @Test
+    @DisplayName("Lazily recovers tenant pool on application restart when pool is not in memory")
+    void shouldLazilyRecoverPoolWhenNotInRegistry() throws Exception {
+        DataSource lazyDataSource = mock(DataSource.class);
+        Connection lazyConn = mock(Connection.class);
+        when(lazyDataSource.getConnection()).thenReturn(lazyConn);
+
+        routingDataSource.setLazyPoolProvider(tenantId -> {
+            if ("recovered_tenant".equals(tenantId)) {
+                return lazyDataSource;
+            }
+            return null;
+        });
+
+        TenantContextHolder.set(new TenantContext("recovered_tenant", "recovered", "IN", "INR", "en_IN", "db_recovered"));
+        Connection conn = routingDataSource.getConnection();
+        assertThat(conn).isNotNull();
+        verify(lazyDataSource, times(1)).getConnection();
+        verify(masterDataSource, never()).getConnection();
+    }
 }

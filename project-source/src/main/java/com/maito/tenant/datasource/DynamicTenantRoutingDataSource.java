@@ -9,20 +9,29 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * Spring AbstractRoutingDataSource dynamically switching database connection pools per tenant.
+ * Supports lazy pool recovery on application restart with zero active pools in memory.
  */
 @Slf4j
 public class DynamicTenantRoutingDataSource extends AbstractRoutingDataSource {
 
     private final Map<Object, Object> targetDataSourcesMap = new ConcurrentHashMap<>();
+    private final DataSource defaultMasterDataSource;
+    private Function<String, DataSource> lazyPoolProvider;
 
     public DynamicTenantRoutingDataSource(DataSource defaultMasterDataSource) {
+        this.defaultMasterDataSource = defaultMasterDataSource;
         setDefaultTargetDataSource(defaultMasterDataSource);
         targetDataSourcesMap.put("master", defaultMasterDataSource);
         setTargetDataSources(targetDataSourcesMap);
         afterPropertiesSet();
+    }
+
+    public void setLazyPoolProvider(Function<String, DataSource> lazyPoolProvider) {
+        this.lazyPoolProvider = lazyPoolProvider;
     }
 
     @Override
@@ -34,6 +43,25 @@ public class DynamicTenantRoutingDataSource extends AbstractRoutingDataSource {
         }
         log.trace("Routing to tenant connection pool: [{}]", tenantId);
         return tenantId;
+    }
+
+    @Override
+    protected DataSource determineTargetDataSource() {
+        Object lookupKey = determineCurrentLookupKey();
+        if (lookupKey == null || "master".equals(lookupKey)) {
+            return defaultMasterDataSource;
+        }
+
+        String tenantId = (String) lookupKey;
+        if (!hasTenantDataSource(tenantId) && lazyPoolProvider != null) {
+            log.info("Tenant pool not in memory for [{}]. Triggering lazy pool recovery...", tenantId);
+            DataSource recoveredDs = lazyPoolProvider.apply(tenantId);
+            if (recoveredDs != null) {
+                return recoveredDs;
+            }
+        }
+
+        return super.determineTargetDataSource();
     }
 
     public synchronized void registerTenantDataSource(String tenantId, DataSource dataSource) {

@@ -86,24 +86,23 @@ public class TenantProvisioningService {
         String tenantSlug = request.tenantSlug().trim().toLowerCase();
         String primaryDomain = cleanDomain(request.primaryDomain());
 
-        // 1. Uniqueness Validations
+        // 1. Uniqueness Validations (returns HTTP 409 Conflict via IDEMPOTENCY_CONFLICT)
         if (tenantRepository.existsByTenantId(tenantId)) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Tenant ID already exists: " + tenantId);
+            throw new BusinessException(ErrorCode.IDEMPOTENCY_CONFLICT, "Tenant ID already exists: " + tenantId);
         }
         if (tenantRepository.existsByTenantSlug(tenantSlug)) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Tenant Slug already exists: " + tenantSlug);
+            throw new BusinessException(ErrorCode.IDEMPOTENCY_CONFLICT, "Tenant Slug already exists: " + tenantSlug);
         }
         if (domainRepository.existsByDomainName(primaryDomain)) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Domain already registered: " + primaryDomain);
+            throw new BusinessException(ErrorCode.IDEMPOTENCY_CONFLICT, "Domain already registered: " + primaryDomain);
         }
 
         String targetDbName = "db_" + tenantSlug.replaceAll("[^a-z0-9_]", "");
         boolean dbCreated = false;
 
         try {
-            // 2. Physical Database Provisioning
-            createPhysicalDatabaseIfNotExists(targetDbName);
-            dbCreated = true;
+            // 2. Physical Database Provisioning (returns true only if actually created)
+            dbCreated = createPhysicalDatabaseIfNotExists(targetDbName);
 
             // Optional restricted DB user creation
             createRestrictedUserIfEnabled(targetDbName, tenantSlug);
@@ -168,14 +167,14 @@ public class TenantProvisioningService {
                     "Tenant successfully provisioned with isolated database and live HikariCP pool."
             );
         } catch (BusinessException be) {
-            if (ErrorCode.BUSINESS_RULE_VIOLATION.equals(be.getErrorCode())) {
+            if (ErrorCode.IDEMPOTENCY_CONFLICT.equals(be.getErrorCode()) || ErrorCode.BUSINESS_RULE_VIOLATION.equals(be.getErrorCode())) {
                 throw be;
             }
-            performCompensatingRollback(targetDbName, tenantId, dbCreated);
+            performCompensatingRollback(targetDbName, tenantId, primaryDomain, dbCreated);
             throw be;
         } catch (Exception ex) {
             log.error("Fatal error during tenant provisioning pipeline for [{}]. Initiating rollback...", tenantId, ex);
-            performCompensatingRollback(targetDbName, tenantId, dbCreated);
+            performCompensatingRollback(targetDbName, tenantId, primaryDomain, dbCreated);
             throw new BusinessException(ErrorCode.PROVISIONING_FAILED,
                     "Tenant provisioning pipeline execution failed: " + ex.getMessage());
         }
@@ -199,7 +198,7 @@ public class TenantProvisioningService {
         // 1. Evict and close active HikariCP connection pool
         poolManager.closeAndEvictPool(tenant.getTenantId());
 
-        // 2. Purge Redis routing cache
+        // 2. Purge Redis routing cache for both ID, slug, and domains
         routingResolver.evictCache(tenant.getTenantId(), null);
         routingResolver.evictCache(tenant.getTenantSlug(), null);
         List<GlobalTenantDomain> domains = domainRepository.findByTenantId(tenant.getTenantId());
@@ -238,12 +237,18 @@ public class TenantProvisioningService {
         );
     }
 
-    private void performCompensatingRollback(String dbName, String tenantId, boolean dbCreated) {
+    private void performCompensatingRollback(String dbName, String tenantId, String primaryDomain, boolean dbCreated) {
         log.warn("COMPENSATING ROLLBACK: Cleaning up provisioning resources for tenant [{}] db [{}]", tenantId, dbName);
         try {
             poolManager.closeAndEvictPool(tenantId);
         } catch (Exception e) {
             log.warn("Rollback pool eviction error for [{}]: {}", tenantId, e.getMessage());
+        }
+
+        try {
+            routingResolver.evictCache(tenantId, primaryDomain);
+        } catch (Exception e) {
+            log.warn("Rollback cache eviction error for [{}]: {}", tenantId, e.getMessage());
         }
 
         if (dbCreated) {
@@ -265,7 +270,7 @@ public class TenantProvisioningService {
         }
     }
 
-    private void createPhysicalDatabaseIfNotExists(String dbName) {
+    private boolean createPhysicalDatabaseIfNotExists(String dbName) {
         log.info("Verifying physical database existence: [{}]", dbName);
         try (Connection conn = masterDataSource.getConnection()) {
             boolean exists = false;
@@ -285,8 +290,10 @@ public class TenantProvisioningService {
                 try (Statement stmt = conn.createStatement()) {
                     stmt.executeUpdate("CREATE DATABASE " + dbName + " OWNER " + masterUsername);
                 }
+                return true;
             } else {
                 log.info("Database [{}] already exists; skipping creation.", dbName);
+                return false;
             }
         } catch (Exception e) {
             log.error("Failed to verify/create database [{}]: {}", dbName, e.getMessage(), e);
@@ -309,12 +316,12 @@ public class TenantProvisioningService {
                 stmt.execute("DO $$\n" +
                         "BEGIN\n" +
                         "    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '" + restrictedUser + "') THEN\n" +
-                        "        CREATE ROLE " + restrictedUser + " WITH LOGIN PASSWORD '" + restrictedPass + "';\n" +
+                        "        CREATE ROLE " + restrictedUser + " WITH LOGIN PASSWORD '" + restrictedPass + "' NOSUPERUSER NOCREATEDB NOCREATEROLE;\n" +
                         "    END IF;\n" +
                         "END\n" +
                         "$$;");
                 stmt.execute("GRANT CONNECT ON DATABASE " + dbName + " TO " + restrictedUser);
-                log.info("Successfully granted CONNECT on [{}] to [{}]", dbName, restrictedUser);
+                log.info("Successfully granted CONNECT on [{}] to [{}] with zero DDL privileges", dbName, restrictedUser);
             }
         } catch (Exception e) {
             log.error("Failed to configure isolated DB user [{}]: {}", restrictedUser, e.getMessage(), e);
@@ -367,10 +374,14 @@ public class TenantProvisioningService {
 
     private Map<String, Object> buildRegionalProfile(ProvisionTenantRequest request) {
         Map<String, Object> map = new HashMap<>();
-        map.put("country", (request.countryCode() != null && !request.countryCode().isBlank()) ? request.countryCode().toUpperCase() : "IN");
-        map.put("currency", (request.currencyCode() != null && !request.currencyCode().isBlank()) ? request.currencyCode().toUpperCase() : "INR");
-        map.put("locale", "en_IN");
-        map.put("timezone", "Asia/Kolkata");
+        String country = (request.countryCode() != null && !request.countryCode().isBlank()) 
+                ? request.countryCode().toUpperCase() : "IN";
+        String currency = (request.currencyCode() != null && !request.currencyCode().isBlank()) 
+                ? request.currencyCode().toUpperCase() : "INR";
+        map.put("country", country);
+        map.put("currency", currency);
+        map.put("locale", country.equalsIgnoreCase("US") ? "en_US" : country.equalsIgnoreCase("AE") ? "ar_AE" : "en_IN");
+        map.put("timezone", country.equalsIgnoreCase("US") ? "America/New_York" : country.equalsIgnoreCase("AE") ? "Asia/Dubai" : "Asia/Kolkata");
         return map;
     }
 
