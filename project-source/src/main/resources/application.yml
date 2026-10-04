@@ -67,12 +67,12 @@ springdoc:
     tags-sorter: alpha
     operations-sorter: alpha
 
-# Actuator Health & Metrics
+# Actuator Health, Metrics & Multi-Tenant Telemetry
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,tenants
   endpoint:
     health:
       show-details: always
@@ -81,3 +81,8 @@ management:
       enabled: false
     kafka:
       enabled: false
+
+# Enterprise Platform Configurations
+platform:
+  security:
+    isolated-db-users: ${PLATFORM_ISOLATED_DB_USERS:false}
