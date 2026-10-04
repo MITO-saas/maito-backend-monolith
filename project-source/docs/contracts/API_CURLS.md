@@ -134,3 +134,56 @@ curl -i -X GET "http://localhost:8080/api/v1/orders" \
   }
 }
 ```
+## Phase 2: Headless CMS & Server-Driven UI (SDUI) Endpoints
+
+### 1. Storefront: Fetch Published Page Layout
+```bash
+curl -X GET http://localhost:8080/api/v1/cms/pages/home \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept-Language: en" \
+  -H "Accept: application/json"
+```
+
+### 2. Admin: Create or Update Page Layout
+```bash
+curl -X POST http://localhost:8080/api/v1/admin/cms/pages \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pageSlug": "about-us",
+    "title": "About Mito Crunch",
+    "seoMetadata": {
+      "metaTitle": "About Us | Mito Crunch"
+    },
+    "isPublished": true,
+    "sections": [
+      {
+        "componentType": "BRAND_STORY",
+        "displayOrder": 1,
+        "isActive": true,
+        "visibilityRules": {},
+        "contentPayload": {
+          "heading": "From Pond to Pack",
+          "body": "Directly sourced from Bihar farmers, roasted with zero trans-fats."
+        }
+      }
+    ]
+  }'
+```
+
+### 3. Admin: Hot-Update Section Payload & Purge Layout Cache
+```bash
+curl -X PUT http://localhost:8080/api/v1/admin/cms/sections/44444444-4444-4444-4444-444444444441 \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "displayOrder": 1,
+    "isActive": true,
+    "visibilityRules": {},
+    "contentPayload": {
+      "text": "Flash Sale: 25% Off Today Only!",
+      "backgroundColor": "#B91C1C",
+      "textColor": "#FFFFFF"
+    }
+  }'
+```
