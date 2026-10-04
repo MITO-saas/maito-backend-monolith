@@ -1,7 +1,8 @@
 # Maito Multi-Tenant SaaS Platform: Phase-1 Architecture & Developer Runbook
 **System**: `maito-backend-monolith`  
 **Phase**: Phase 1 ("SaaS Multi-Tenancy Core Foundation")  
-**Branch**: `feat/saas-core-multitenancy`  
+**STATUS: PERMANENTLY SEALED & LOCKED (Release Tag: v1.0.0-phase1-core)**  
+**Branch**: `dev` (Sealed Baseline)  
 **Target Audience**: Principal Architects, Lead Systems Engineers, Senior/Junior Backend Developers  
 
 ---
