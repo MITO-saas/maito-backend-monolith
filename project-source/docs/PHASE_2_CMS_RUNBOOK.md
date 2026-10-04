@@ -271,3 +271,74 @@ Changes to `mito_crunch` never affect `vijiya_solar`.
 1. **Cache Key Pattern**: `tenant:{tenantId}:cms:{pageSlug}:{locale}`
 2. **TTL**: 15 minutes.
 3. **Resilience Invariant**: All Redis operations are guarded with `try-catch`. If Redis is down, the service catches the connection exception, queries PostgreSQL directly, and returns the response without latency spikes or user-facing errors.
+
+---
+
+## 6. 10-Year Media & Static Asset Storage Architecture
+
+To eliminate reliance on volatile external CDNs that can rot, fail offline, or suffer network partitioning, Maito implements a storage-agnostic, localized asset architecture.
+
+### 6.1 Directory & Brand Taxonomy
+Static assets are organized by brand identity directly within the monolith resources:
+```
+src/main/resources/static/assets/brands/mito_crunch/
+├── banners/
+│   ├── hero_roasted_makhana.webp    [Hero Carousel Primary Image]
+│   └── promo_holi_sale.webp         [Story / Heritage Sourcing Image]
+├── products/
+│   ├── makhana_peri_peri.webp       [Featured Grid Item 1]
+│   ├── makhana_himalayan_salt.webp  [Featured Grid Item 2]
+│   └── makhana_mint_magic.webp      [Featured Grid Item 3]
+└── brand/
+    └── logo_crunch.svg              [Vector Brand Identity Logo]
+```
+
+### 6.2 HTTP Caching & Edge Propagation
+Spring Boot's `WebMvcConfig` maps `/assets/**` directly to `classpath:/static/assets/`:
+```java
+@Configuration
+public class WebMvcConfig implements WebMvcConfigurer {
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/assets/**")
+                .addResourceLocations("classpath:/static/assets/")
+                .setCacheControl(CacheControl.maxAge(30, TimeUnit.DAYS).cachePublic());
+    }
+}
+```
+
+### 6.3 Live Visual Storefront Rendering ASCII Mockup (http://localhost:8080)
+```
++---------------------------------------------------------------------------------------+
+|  [OFFER] Free Delivery on orders above ₹499 | Use Code: CRUNCHFREE                [X]  |  <- PromoStrip (SDUI)
++---------------------------------------------------------------------------------------+
+|  [LOGO: MITO CRUNCH]        Trending Flavors | Our Roots | Wetlands    [Tenant: mito] (0) |  <- Header Nav
++---------------------------------------------------------------------------------------+
+|                                                                                       |
+|  [100% Traceable Mithila Foxnuts]                  +-------------------------------+  |
+|  FARM-FRESH ROASTED JUMBO MAKHANA                 | [PHOTO: Crispy Roasted        |  |  <- HeroCarousel (SDUI)
+|  100% Organic, Handpicked from Mithila Wetlands.  |  Makhana Bowl on Dark Slate]  |  |     (/assets/.../hero.webp)
+|  Roasted with zero trans-fats.                    |                               |  |
+|                                                   +-------------------------------+  |
+|  [Shop Collection ->]   [Explore Origins]                                            |
+|                                                                                       |
++---------------------------------------------------------------------------------------+
+|                                  TRENDING FLAVORS                                     |
+|  Slowly roasted to perfection with cold-pressed olive oil & natural Himalayan herbs.  |
+|                                                                                       |
+|  +--------------------+    +--------------------+    +--------------------+           |
+|  | [PHOTO: Peri Peri] |    | [PHOTO: Pink Salt] |    | [PHOTO: Mint Magic]|           |  <- FeaturedGrid (SDUI)
+|  | Peri Peri Crunch   |    | Himalayan Pink Salt|    | Mint Magic         |           |     (/assets/.../products/)
+|  | ₹199  [Add to Cart]|    | ₹199  [Add to Cart]|    | ₹199  [Add to Cart]|           |
+|  +--------------------+    +--------------------+    +--------------------+           |
++---------------------------------------------------------------------------------------+
+|                                                                                       |
+|  FROM POND TO PACK                                 +-------------------------------+  |
+|  Directly sourced from Bihar farmers,              | [PHOTO: Festive Celebration & |  |  <- BrandStory (SDUI)
+|  roasted with zero trans-fats.                     |  Mithila Wetland Sourcing]    |  |     (/assets/.../promo.webp)
+|  [100% Organic Harvest]  [Zero Preservatives]      +-------------------------------+  |
++---------------------------------------------------------------------------------------+
+|  MITO CRUNCH - Farm Fresh Makhana                  Policies: Privacy | Terms | Refund  |  <- FooterLinks (SDUI)
+|  (c) 2026 Mito Crunch. 30-Year High Availability Standards.                           |
++---------------------------------------------------------------------------------------+
+```

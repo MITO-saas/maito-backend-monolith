@@ -550,6 +550,75 @@
               }
             }
           ]
+        },
+        {
+          "name": "Verify Immutable Static Media Asset (Hero Banner)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assets/brands/mito_crunch/banners/hero_roasted_makhana.webp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assets",
+                "brands",
+                "mito_crunch",
+                "banners",
+                "hero_roasted_makhana.webp"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Asset returns HTTP 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Cache-Control header has max-age\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"max-age=2592000\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Immutable Static Media Asset (Peri Peri Product)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assets/brands/mito_crunch/products/makhana_peri_peri.webp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assets",
+                "brands",
+                "mito_crunch",
+                "products",
+                "makhana_peri_peri.webp"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Product image returns HTTP 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     }
