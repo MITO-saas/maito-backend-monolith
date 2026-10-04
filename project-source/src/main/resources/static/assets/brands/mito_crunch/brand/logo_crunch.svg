@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <linearGradient id="lotusGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF3C7" />
+      <stop offset="100%" stop-color="#FDE68A" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Emblem: Stylized Roasted Lotus Seed / Makhana -->
+  <g transform="translate(10, 10)">
+    <circle cx="30" cy="30" r="28" fill="url(#goldGrad)"/>
+    <path d="M30 12 C38 20 44 26 44 34 C44 42 38 48 30 48 C22 48 16 42 16 34 C16 26 22 20 30 12 Z" fill="url(#lotusGrad)" opacity="0.95"/>
+    <circle cx="30" cy="33" r="5" fill="#D97706" opacity="0.8"/>
+    <circle cx="25" cy="27" r="2.5" fill="#B45309" opacity="0.7"/>
+    <circle cx="35" cy="28" r="2" fill="#B45309" opacity="0.7"/>
+  </g>
+  
+  <!-- Brand Typography -->
+  <text x="80" y="42" font-family="'Cabinet Grotesk', 'Outfit', sans-serif" font-size="28" font-weight="900" fill="#0F172A" letter-spacing="1.5">MITO</text>
+  <text x="165" y="42" font-family="'Cabinet Grotesk', 'Outfit', sans-serif" font-size="28" font-weight="900" fill="#D97706" letter-spacing="1.5">CRUNCH</text>
+  <text x="82" y="60" font-family="'Inter', sans-serif" font-size="10" font-weight="600" fill="#64748B" letter-spacing="3.5">FARM-FRESH JUMBO MAKHANA</text>
+</svg>

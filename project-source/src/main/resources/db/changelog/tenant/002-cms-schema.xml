@@ -138,9 +138,9 @@
             ('c0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'PROMO_STRIP', 1, true, '{}'::jsonb,
              '{"text": "Free Delivery on orders above ₹499 | Use Code: CRUNCHFREE", "backgroundColor": "#0F172A", "textColor": "#F8FAFC"}'::jsonb),
             ('c0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'HERO_CAROUSEL', 2, true, '{}'::jsonb,
-             '{"slides": [{"title": "Farm-Fresh Roasted Jumbo Makhana", "subtitle": "100% Organic, Handpicked from Mithila Wetlands", "ctaText": "Shop Collection", "ctaLink": "/collections/makhana", "imageUrl": "https://cdn.mitocrunch.in/banners/hero1.webp"}]}'::jsonb),
+             '{"slides": [{"title": "Farm-Fresh Roasted Jumbo Makhana", "subtitle": "100% Organic, Handpicked from Mithila Wetlands", "ctaText": "Shop Collection", "ctaLink": "/collections/makhana", "imageUrl": "/assets/brands/mito_crunch/banners/hero_roasted_makhana.webp"}]}'::jsonb),
             ('c0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'FEATURED_GRID', 3, true, '{}'::jsonb,
-             '{"heading": "Trending Flavors", "items": [{"name": "Peri Peri Crunch", "tag": "Best Seller"}, {"name": "Himalayan Pink Salt", "tag": "Classic"}, {"name": "Mint Magic", "tag": "Popular"}]}'::jsonb),
+             '{"heading": "Trending Flavors", "items": [{"name": "Peri Peri Crunch", "tag": "Best Seller", "imageUrl": "/assets/brands/mito_crunch/products/makhana_peri_peri.webp"}, {"name": "Himalayan Pink Salt", "tag": "Classic", "imageUrl": "/assets/brands/mito_crunch/products/makhana_himalayan_salt.webp"}, {"name": "Mint Magic", "tag": "Popular", "imageUrl": "/assets/brands/mito_crunch/products/makhana_mint_magic.webp"}]}'::jsonb),
             ('c0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'BRAND_STORY', 4, true, '{}'::jsonb,
              '{"heading": "From Pond to Pack", "body": "Directly sourced from Bihar farmers, roasted with zero trans-fats."}'::jsonb),
             ('c0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000001', 'FOOTER_LINKS', 5, true, '{}'::jsonb,
@@ -149,4 +149,18 @@
         </sql>
     </changeSet>
 
+
+    <!-- 005: Update Mito Crunch Asset Paths to Localized Immutable Assets -->
+    <changeSet id="005-update-mitocrunch-asset-paths" author="maito-cms-architect">
+        <comment>Switch external CDN placeholders to localized 10-year immutable assets</comment>
+        <sql>
+            UPDATE cms_sections
+            SET content_payload = '{"slides": [{"title": "Farm-Fresh Roasted Jumbo Makhana", "subtitle": "100% Organic, Handpicked from Mithila Wetlands", "ctaText": "Shop Collection", "ctaLink": "/collections/makhana", "imageUrl": "/assets/brands/mito_crunch/banners/hero_roasted_makhana.webp"}]}'::jsonb
+            WHERE id = 'c0000000-0000-0000-0000-000000000002';
+
+            UPDATE cms_sections
+            SET content_payload = '{"heading": "Trending Flavors", "items": [{"name": "Peri Peri Crunch", "tag": "Best Seller", "imageUrl": "/assets/brands/mito_crunch/products/makhana_peri_peri.webp"}, {"name": "Himalayan Pink Salt", "tag": "Classic", "imageUrl": "/assets/brands/mito_crunch/products/makhana_himalayan_salt.webp"}, {"name": "Mint Magic", "tag": "Popular", "imageUrl": "/assets/brands/mito_crunch/products/makhana_mint_magic.webp"}]}'::jsonb
+            WHERE id = 'c0000000-0000-0000-0000-000000000003';
+        </sql>
+    </changeSet>
 </databaseChangeLog>

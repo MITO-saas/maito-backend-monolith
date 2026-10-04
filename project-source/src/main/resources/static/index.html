@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mito Crunch | Farm-Fresh Roasted Jumbo Makhana</title>
+  <meta name="description" content="100% Organic, Handpicked from Mithila Wetlands. Roasted with zero trans-fats.">
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@700;800;900&family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: 'var(--color-primary, #D97706)',
+              dark: '#B45309',
+              light: '#F59E0B',
+              surface: '#FFFBEB'
+            }
+          },
+          fontFamily: {
+            heading: ['var(--font-heading, "Cabinet Grotesk")', 'Outfit', 'sans-serif'],
+            body: ['var(--font-body, "Inter")', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --color-primary: #D97706;
+      --font-heading: 'Cabinet Grotesk', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --border-radius: 8px;
+    }
+    body {
+      font-family: var(--font-body);
+      background-color: #FAFAFA;
+      color: #0F172A;
+      overflow-x: hidden;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: var(--font-heading);
+    }
+    .custom-radius {
+      border-radius: var(--border-radius);
+    }
+    .carousel-slide {
+      transition: opacity 0.6s ease-in-out;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Mount Point for SDUI Top Elements -->
+  <div id="promo-strip-container"></div>
+
+  <!-- Global Storefront Header -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm transition-all">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="/" class="flex items-center space-x-3 group">
+        <img src="/assets/brands/mito_crunch/brand/logo_crunch.svg" alt="Mito Crunch Logo" class="h-10 w-auto group-hover:scale-105 transition-transform" />
+      </a>
+
+      <!-- Desktop Navigation -->
+      <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-700">
+        <a href="#featured" class="hover:text-amber-600 transition-colors">Trending Flavors</a>
+        <a href="#story" class="hover:text-amber-600 transition-colors">Our Roots</a>
+        <a href="#about" class="hover:text-amber-600 transition-colors">Mithila Wetlands</a>
+        <a href="#contact" class="hover:text-amber-600 transition-colors">Direct Sourcing</a>
+      </nav>
+
+      <!-- Action Items & Tenant Switcher -->
+      <div class="flex items-center space-x-4">
+        <div class="hidden sm:flex items-center bg-slate-100 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+          Tenant: <span id="tenant-badge" class="ml-1 text-slate-900 font-bold">mito_crunch</span>
+        </div>
+        
+        <button id="cart-btn" class="relative p-2 text-slate-700 hover:text-amber-600 hover:bg-slate-100 rounded-full transition-colors">
+          <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+          <span id="cart-count" class="absolute -top-1 -right-1 bg-amber-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- SDUI Main Content Body -->
+  <main id="sdui-root" class="flex-grow">
+    <!-- Skeleton Loading State -->
+    <div id="loading-state" class="max-w-7xl mx-auto px-4 py-12 space-y-8 animate-pulse">
+      <div class="h-96 bg-slate-200 rounded-2xl w-full"></div>
+      <div class="space-y-4">
+        <div class="h-8 bg-slate-200 rounded w-1/4"></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="h-64 bg-slate-200 rounded-xl"></div>
+          <div class="h-64 bg-slate-200 rounded-xl"></div>
+          <div class="h-64 bg-slate-200 rounded-xl"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
+    <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+    <span id="toast-msg" class="text-sm font-medium">Added to Cart!</span>
+  </div>
+
+  <!-- SDUI Engine JavaScript Application -->
+  <script>
+    // Global Cart State
+    let cartCount = 0;
+    function addToCart(productName) {
+      cartCount++;
+      document.getElementById('cart-count').innerText = cartCount;
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = `Added "${productName}" to Cart!`;
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 2500);
+    }
+
+    // SDUI Component Registry
+    const ComponentRegistry = {
+      // 1. PROMO_STRIP
+      PROMO_STRIP: function(payload, sectionId) {
+        return `
+          <div id="section-${sectionId}" class="relative py-2.5 px-4 text-center text-xs sm:text-sm font-semibold tracking-wide flex items-center justify-center transition-all duration-300"
+               style="background-color: ${payload.backgroundColor || '#0F172A'}; color: ${payload.textColor || '#F8FAFC'};">
+            <div class="flex items-center space-x-2">
+              <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-amber-500 text-slate-900 tracking-wider">OFFER</span>
+              <span>${payload.text}</span>
+            </div>
+            <button onclick="document.getElementById('section-${sectionId}').remove()" class="absolute right-4 p-1 hover:opacity-75 focus:outline-none" aria-label="Dismiss">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        `;
+      },
+
+      // 2. HERO_CAROUSEL
+      HERO_CAROUSEL: function(payload, sectionId) {
+        const slides = payload.slides || [];
+        if (!slides.length) return '';
+        const slide = slides[0]; // Primary responsive slide
+        return `
+          <section class="relative bg-slate-950 overflow-hidden text-white">
+            <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 flex flex-col lg:flex-row items-center justify-between gap-12 z-10">
+              <div class="max-w-xl text-center lg:text-left space-y-6">
+                <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold uppercase tracking-wider">
+                  <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                  <span>100% Traceable Mithila Foxnuts</span>
+                </div>
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight text-white">
+                  ${slide.title}
+                </h1>
+                <p class="text-lg text-slate-300 font-normal leading-relaxed">
+                  ${slide.subtitle}
+                </p>
+                <div class="pt-4 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+                  <a href="${slide.ctaLink || '#featured'}" 
+                     class="w-full sm:w-auto px-8 py-4 text-slate-950 font-bold rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all text-center group flex items-center justify-center space-x-2"
+                     style="background-color: var(--color-primary, #D97706); border-radius: var(--border-radius);">
+                    <span>${slide.ctaText || 'Shop Collection'}</span>
+                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                  </a>
+                  <a href="#story" class="w-full sm:w-auto px-6 py-4 text-white font-semibold rounded-xl border border-slate-700 hover:bg-slate-800/60 transition-colors text-center">
+                    Explore Origins
+                  </a>
+                </div>
+              </div>
+              <div class="w-full lg:max-w-lg relative group">
+                <div class="absolute -inset-1 rounded-3xl bg-gradient-to-r from-amber-500 to-amber-700 opacity-30 blur-2xl group-hover:opacity-50 transition-opacity"></div>
+                <div class="relative overflow-hidden rounded-2xl shadow-2xl border border-slate-800 bg-slate-900">
+                  <img src="${slide.imageUrl}" alt="${slide.title}" class="w-full h-[380px] sm:h-[440px] object-cover hover:scale-105 transition-transform duration-700" />
+                </div>
+              </div>
+            </div>
+            <!-- Decorative Subtle Wave Divider -->
+            <div class="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#FAFAFA] to-transparent"></div>
+          </section>
+        `;
+      },
+
+      // 3. FEATURED_GRID
+      FEATURED_GRID: function(payload, sectionId) {
+        const items = payload.items || [];
+        return `
+          <section id="featured" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div class="text-center max-w-2xl mx-auto mb-14">
+              <span class="text-xs font-bold uppercase tracking-widest text-amber-600">Pure Roasted Goodness</span>
+              <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2">${payload.heading || 'Trending Flavors'}</h2>
+              <p class="text-slate-600 mt-3 text-sm sm:text-base">Slowly roasted to perfection with cold-pressed olive oil and natural Himalayan herbs.</p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              ${items.map(item => `
+                <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 flex flex-col group">
+                  <div class="relative bg-slate-50 overflow-hidden aspect-square flex items-center justify-center">
+                    <img src="${item.imageUrl || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
+                         alt="${item.name}" 
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ${item.tag ? `
+                      <span class="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-slate-800 shadow-sm border border-slate-100">
+                        ${item.tag}
+                      </span>
+                    ` : ''}
+                  </div>
+                  <div class="p-6 flex flex-col flex-grow justify-between space-y-4">
+                    <div>
+                      <h3 class="text-xl font-bold text-slate-900 group-hover:text-amber-600 transition-colors">${item.name}</h3>
+                      <p class="text-xs text-slate-500 mt-1">70g Pouch | 100% Organic Foxnuts | 0% Trans Fat</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+                      <div class="flex items-baseline space-x-1">
+                        <span class="text-2xl font-black text-slate-900">₹199</span>
+                        <span class="text-xs text-slate-400 line-through">₹249</span>
+                      </div>
+                      <button onclick="addToCart('${item.name}')" 
+                              class="px-4 py-2.5 bg-slate-900 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm active:scale-95">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Add to Cart</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </section>
+        `;
+      },
+
+      // 4. BRAND_STORY
+      BRAND_STORY: function(payload, sectionId) {
+        return `
+          <section id="story" class="bg-amber-50/60 border-y border-amber-100/80 py-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div class="space-y-6">
+                  <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 text-xs font-bold uppercase tracking-wider">
+                    <span>Mithila Sourcing Heritage</span>
+                  </div>
+                  <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight">
+                    ${payload.heading || 'From Pond to Pack'}
+                  </h2>
+                  <p class="text-slate-700 text-base sm:text-lg leading-relaxed font-normal">
+                    ${payload.body || 'Directly sourced from Bihar farmers, roasted with zero trans-fats.'}
+                  </p>
+                  <div class="grid grid-cols-2 gap-4 pt-4">
+                    <div class="bg-white p-4 rounded-xl border border-amber-100 shadow-sm">
+                      <span class="block text-2xl font-black text-amber-600">100%</span>
+                      <span class="text-xs font-semibold text-slate-600">Organic Wetland Harvest</span>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-amber-100 shadow-sm">
+                      <span class="block text-2xl font-black text-amber-600">Zero</span>
+                      <span class="text-xs font-semibold text-slate-600">Trans-Fat & Preservatives</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="relative">
+                  <div class="rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+                    <img src="/assets/brands/mito_crunch/banners/promo_holi_sale.webp" 
+                         alt="Heritage Sourcing" 
+                         class="w-full h-80 sm:h-96 object-cover" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        `;
+      },
+
+      // 5. FOOTER_LINKS
+      FOOTER_LINKS: function(payload, sectionId) {
+        const policies = payload.policies || ['Privacy Policy', 'Terms of Service', 'Refund Policy'];
+        const social = payload.social || { instagram: '@mitocrunch' };
+        return `
+          <footer class="bg-slate-950 text-slate-400 py-16 border-t border-slate-800">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-slate-800">
+                <div class="md:col-span-2 space-y-4">
+                  <img src="/assets/brands/mito_crunch/brand/logo_crunch.svg" alt="Mito Crunch" class="h-9 w-auto brightness-200" />
+                  <p class="text-sm text-slate-400 max-w-sm">
+                    Premium organic roasted makhana handpicked from the wetlands of Mithila, Bihar. Nutritious snacking crafted for modern lifestyles.
+                  </p>
+                  <div class="text-xs text-amber-400 font-semibold">
+                    Follow us: <a href="https://instagram.com" class="hover:underline">${social.instagram || '@mitocrunch'}</a>
+                  </div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-4">Policies & Compliance</h4>
+                  <ul class="space-y-2 text-sm">
+                    ${policies.map(p => `<li><a href="#" class="hover:text-amber-400 transition-colors">${p}</a></li>`).join('')}
+                  </ul>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-4">Platform Architecture</h4>
+                  <p class="text-xs text-slate-500 leading-relaxed">
+                    Powered by Maito Server-Driven UI (SDUI) Engine with isolated PostgreSQL multi-tenancy & immutable static asset storage.
+                  </p>
+                </div>
+              </div>
+              <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+                <span>&copy; ${new Date().getFullYear()} Mito Crunch. All rights reserved.</span>
+                <span class="flex items-center space-x-1">
+                  <span>Engineered with 30-Year High-Availability Standards</span>
+                </span>
+              </div>
+            </div>
+          </footer>
+        `;
+      }
+    };
+
+    // SDUI Dynamic Orchestrator
+    async function initSDUI() {
+      const tenantId = 'mito_crunch';
+      try {
+        const response = await fetch('/api/v1/cms/pages/home', {
+          headers: {
+            'X-Tenant-ID': tenantId,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const resData = await response.json();
+        if (!resData.success || !resData.data) {
+          throw new Error('Failed to parse SDUI layout envelope');
+        }
+
+        const { pageSlug, title, seo, theme, sections } = resData.data;
+
+        // Apply dynamic brand theme tokens to document CSS variables
+        if (theme && theme.tokens) {
+          if (theme.tokens.primaryColor) {
+            document.documentElement.style.setProperty('--color-primary', theme.tokens.primaryColor);
+          }
+          if (theme.tokens.fontHeadings) {
+            document.documentElement.style.setProperty('--font-heading', theme.tokens.fontHeadings);
+          }
+          if (theme.tokens.fontBody) {
+            document.documentElement.style.setProperty('--font-body', theme.tokens.fontBody);
+          }
+          if (theme.tokens.borderRadiusPx) {
+            document.documentElement.style.setProperty('--border-radius', `${theme.tokens.borderRadiusPx}px`);
+          }
+        }
+
+        // Apply SEO metadata
+        if (seo && seo.metaTitle) {
+          document.title = seo.metaTitle;
+        }
+
+        // Separate promo strip from main flow if present
+        const promoSection = sections.find(s => s.componentType === 'PROMO_STRIP');
+        if (promoSection && ComponentRegistry.PROMO_STRIP) {
+          document.getElementById('promo-strip-container').innerHTML = 
+            ComponentRegistry.PROMO_STRIP(promoSection.contentPayload, promoSection.sectionId);
+        }
+
+        // Sort sections by displayOrder and render
+        const bodySections = sections.filter(s => s.componentType !== 'PROMO_STRIP');
+        bodySections.sort((a, b) => a.displayOrder - b.displayOrder);
+
+        let renderedHtml = '';
+        for (const sec of bodySections) {
+          const renderer = ComponentRegistry[sec.componentType];
+          if (renderer) {
+            renderedHtml += renderer(sec.contentPayload, sec.sectionId);
+          } else {
+            console.warn('Unknown SDUI component type:', sec.componentType);
+          }
+        }
+
+        const rootEl = document.getElementById('sdui-root');
+        rootEl.innerHTML = renderedHtml;
+
+        // Re-initialize lucide icons for dynamically added elements
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+
+      } catch (err) {
+        console.error('SDUI Bootstrapping error:', err);
+        document.getElementById('sdui-root').innerHTML = `
+          <div class="max-w-xl mx-auto my-20 p-8 bg-white border border-rose-200 rounded-2xl text-center shadow-lg">
+            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900">Failed to render Server-Driven UI</h2>
+            <p class="text-sm text-slate-600 mt-2">${err.message}</p>
+            <button onclick="location.reload()" class="mt-6 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800">Retry Connection</button>
+          </div>
+        `;
+      }
+    }
+
+    // Initialize once DOM is ready
+    window.addEventListener('DOMContentLoaded', () => {
+      initSDUI();
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>
