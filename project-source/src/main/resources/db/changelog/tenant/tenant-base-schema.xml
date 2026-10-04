@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Enable pgcrypto in Tenant DB -->
+    <changeSet id="001-tenant-enable-uuid-extension" author="maito-architect" dbms="postgresql">
+        <comment>Enable pgcrypto for isolated tenant UUID keys</comment>
+        <sql>CREATE EXTENSION IF NOT EXISTS "pgcrypto";</sql>
+    </changeSet>
+
+    <!-- 002: Tenant User Profiles -->
+    <changeSet id="002-create-tenant-user-profiles" author="maito-architect">
+        <comment>Tenant-scoped user identities with dynamic RBAC permission matrices</comment>
+        <createTable tableName="tenant_user_profiles">
+            <column name="user_id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="profile_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_matrix" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="commercial_attributes" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="tenant_user_profiles" indexName="idx_tenant_profiles_type">
+            <column name="profile_type"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 003: GIN Indexes on tenant_user_profiles -->
+    <changeSet id="003-create-tenant-user-profiles-gin-indexes" author="maito-architect" dbms="postgresql">
+        <comment>GIN indexes for dynamic RBAC and commercial attributes lookup</comment>
+        <sql>
+            CREATE INDEX idx_tenant_profiles_perm_gin ON tenant_user_profiles USING gin (permission_matrix);
+            CREATE INDEX idx_tenant_profiles_comm_gin ON tenant_user_profiles USING gin (commercial_attributes);
+        </sql>
+    </changeSet>
+
+    <!-- 004: Tenant Audit Log -->
+    <changeSet id="004-create-tenant-audit-log" author="maito-architect">
+        <comment>Comprehensive tenant data change and action audit ledger</comment>
+        <createTable tableName="tenant_audit_log">
+            <column name="audit_id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_timestamp" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_id" type="UUID"/>
+            <column name="actor_role" type="VARCHAR(64)"/>
+            <column name="action_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resource_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resource_id" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="diff_payload" type="JSONB"/>
+            <column name="client_ip" type="VARCHAR(64)"/>
+            <column name="correlation_id" type="VARCHAR(128)"/>
+        </createTable>
+
+        <createIndex tableName="tenant_audit_log" indexName="idx_tenant_audit_timestamp">
+            <column name="event_timestamp"/>
+        </createIndex>
+        <createIndex tableName="tenant_audit_log" indexName="idx_tenant_audit_actor">
+            <column name="actor_id"/>
+        </createIndex>
+        <createIndex tableName="tenant_audit_log" indexName="idx_tenant_audit_resource">
+            <column name="resource_type"/>
+            <column name="resource_id"/>
+        </createIndex>
+        <createIndex tableName="tenant_audit_log" indexName="idx_tenant_audit_correlation">
+            <column name="correlation_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 005: GIN Index on tenant_audit_log diff_payload -->
+    <changeSet id="005-create-tenant-audit-gin-index" author="maito-architect" dbms="postgresql">
+        <comment>GIN index for querying deep entity change diffs</comment>
+        <sql>
+            CREATE INDEX idx_tenant_audit_diff_gin ON tenant_audit_log USING gin (diff_payload);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

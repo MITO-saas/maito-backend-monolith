@@ -1,0 +1,211 @@
+MASTER PRODUCT REQUIREMENTS DOCUMENT (PRD)Project Name: Maito E-Commerce Platform (maito-backend-monolith)Document Code: PRD-MAITO-V1-PRODCurrent Revision: 1.0 (Enterprise Modular Monolith Production Benchmark)Target Runtime: Java 21 (LTS) | Spring Boot 3.3.4 | PostgreSQL 16 (localhost:5432/maito_db) | Redis 7.2 | Liquibase 4.27.0 | Maven 3.9+Package Base: com.maito.*Base Entities & Contracts Active: ApiResponse<T>, BaseAuditableEntity, GlobalExceptionHandler, ErrorCode, OpenApiConfig1. System Vision & Architecture AlignmentThe Maito E-Commerce platform operates as a high-performance Domain-Driven Modular Monolith. It unifies Direct-to-Consumer (D2C) high-velocity retail snacks and Business-to-Business (B2B) bulk-tier wholesale operations for premium Makhana (Foxnuts) and agro-snack products into a single deployable artifact.                                [ Client Ingress / Browser / Mobile App ]
+                                                   │
+                                                   ▼
+                                  [ Spring Boot 3.3.4 WebMVC Engine ]
+                                  (Port 8080 | Context Root: /api/v1)
+                                                   │
+            ┌──────────────────────────────────────┼──────────────────────────────────────┐
+            ▼                                      ▼                                      ▼
+   [ com.maito.catalog ]                  [ com.maito.order ]                   [ com.maito.payment ]
+   - Makhana Grade Hierarchy              - Cart Management (Redis)             - Webhook Verification (HMAC)
+   - Variants (Grams/Kg)                  - 2-Phase Stock Reservation           - Payment Reconciliation
+   - FIFO Batch Tracking                  - Order State Machine (FSM)           - Idempotency Gate
+            │                                      │                                      │
+            └──────────────────────────────────────┼──────────────────────────────────────┘
+                                                   │
+                                                   ▼
+                              [ Cross-Cutting Core & Shared Infra ]
+                               - ApiResponse<T> Unified Envelope
+                               - BaseAuditableEntity (UUID, Optimistic Lock Version)
+                               - GlobalExceptionHandler & BusinessException
+                                                   │
+                         ┌─────────────────────────┴─────────────────────────┐
+                         ▼                                                   ▼
+         [ PostgreSQL 16 (maito_db) ]                        [ Redis 7.2 Cache / Lock ]
+         - Liquibase Schema Migrations                       - Ephemeral Cart Storage
+         - Zero Manual DDL Drift                             - Redisson Distributed Locks
+1.1 Non-Negotiable Architectural PrinciplesModule Independence: Domain modules (catalog, order, payment, customer, cms) must communicate via public service interfaces (*.api.*) and immutable records. Direct cross-module entity relationships (@ManyToOne across different module domain entities) are strictly forbidden; references use raw UUIDs.Deterministic Response Wrapping: Every endpoint returns ApiResponse<T>.Auditing & Concurrency: All tables inherit from BaseAuditableEntity using UUID primary keys, UTC timestamps, and optimistic locking (@Version Long version).Zero Manual DDL: Every database change is executed via Liquibase changelogs located in src/main/resources/db/changelog/.Local Runnability: The system must build and pass all slice tests locally with a single command: ./mvnw clean test (or mvnw.cmd clean test on Windows).2. Exhaustive Domain Specifications2.1 Domain Module: Catalog & Makhana Variant Engine (com.maito.catalog)Business Purpose: Manages raw and processed Makhana grades, SKU variants, packaging configurations, and FIFO batch inventory.Makhana Grade Classification: 4_SUTA, 5_SUTA_JUMBO, 6_SUTA_HANDPICK, NA.Processing Classification: RAW_GRADED, ROASTED_FLAVORED, PROCESSED_BYPRODUCT.Database Schema (Liquibase Changeset: db/changelog/changes/002-catalog-schema.xml):SQLCREATE TABLE product_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug VARCHAR(128) UNIQUE NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    parent_id UUID REFERENCES product_categories(id),
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    category_id UUID NOT NULL REFERENCES product_categories(id),
+    sku_code VARCHAR(64) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    makhana_grade VARCHAR(64),
+    processing_type VARCHAR(64) NOT NULL,
+    hsn_code VARCHAR(16) NOT NULL DEFAULT '19041090',
+    gst_rate_percent NUMERIC(4,2) NOT NULL DEFAULT 5.00,
+    is_published BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE product_variants (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    variant_sku VARCHAR(64) UNIQUE NOT NULL,
+    flavor VARCHAR(64) DEFAULT 'CLASSIC_SALTED',
+    package_weight_grams INT NOT NULL,
+    uom VARCHAR(16) NOT NULL DEFAULT 'GRAMS',
+    mrp_paisa BIGINT NOT NULL,
+    selling_price_paisa BIGINT NOT NULL,
+    wholesale_price_paisa BIGINT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE inventory_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    variant_id UUID NOT NULL REFERENCES product_variants(id) ON DELETE RESTRICT,
+    batch_number VARCHAR(64) NOT NULL,
+    warehouse_code VARCHAR(32) NOT NULL DEFAULT 'WH-BIHAR-01',
+    moisture_percentage NUMERIC(4,2),
+    manufacturing_date DATE NOT NULL,
+    expiry_date DATE NOT NULL,
+    available_quantity INT NOT NULL DEFAULT 0,
+    allocated_quantity INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_variant_batch_wh UNIQUE (variant_id, batch_number, warehouse_code)
+);
+
+CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX idx_variants_product ON product_variants(product_id);
+CREATE INDEX idx_inventory_lookup ON inventory_batches(variant_id, warehouse_code);
+2.2 Domain Module: Customer & Identity Management (com.maito.customer)Business Purpose: Centralizes authentication, customer addresses, and B2B wholesale verification profiles.Database Schema (Liquibase Changeset: db/changelog/changes/003-customer-schema.xml):SQLCREATE TABLE customers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone_number VARCHAR(16) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    full_name VARCHAR(128),
+    account_type VARCHAR(32) NOT NULL DEFAULT 'CUSTOMER_D2C',
+    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE customer_b2b_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID UNIQUE NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    company_name VARCHAR(255) NOT NULL,
+    gstin VARCHAR(15) UNIQUE NOT NULL,
+    pan_number VARCHAR(10) NOT NULL,
+    credit_limit_paisa BIGINT DEFAULT 0,
+    credit_terms_days INT DEFAULT 0,
+    kyc_status VARCHAR(32) NOT NULL DEFAULT 'PENDING_VERIFICATION',
+    verification_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE customer_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    address_type VARCHAR(32) NOT NULL DEFAULT 'SHIPPING',
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    recipient_name VARCHAR(128) NOT NULL,
+    phone_number VARCHAR(16) NOT NULL,
+    street_line1 VARCHAR(255) NOT NULL,
+    street_line2 VARCHAR(255),
+    landmark VARCHAR(128),
+    city VARCHAR(64) NOT NULL,
+    state VARCHAR(64) NOT NULL,
+    postal_code VARCHAR(12) NOT NULL,
+    country_code VARCHAR(4) NOT NULL DEFAULT 'IN',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+2.3 Domain Module: Cart, Order & State Machine (com.maito.order)State Machine Shifts: CREATED $\rightarrow$ PAYMENT_PENDING $\rightarrow$ CONFIRMED $\rightarrow$ PROCESSING $\rightarrow$ SHIPPED $\rightarrow$ DELIVERED | CANCELLED.Two-Phase Inventory Reservation: Soft-lock for 15 minutes in Redis during checkout; hard deduction in PostgreSQL upon payment success.Database Schema (Liquibase Changeset: db/changelog/changes/004-order-schema.xml):SQLCREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_number VARCHAR(32) UNIQUE NOT NULL,
+    customer_id UUID NOT NULL,
+    order_type VARCHAR(16) NOT NULL DEFAULT 'D2C',
+    order_status VARCHAR(32) NOT NULL DEFAULT 'CREATED',
+    payment_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    payment_method VARCHAR(32),
+    currency VARCHAR(4) NOT NULL DEFAULT 'INR',
+    subtotal_paisa BIGINT NOT NULL,
+    discount_paisa BIGINT NOT NULL DEFAULT 0,
+    tax_paisa BIGINT NOT NULL,
+    shipping_charges_paisa BIGINT NOT NULL DEFAULT 0,
+    total_amount_paisa BIGINT NOT NULL,
+    shipping_address_snapshot JSONB NOT NULL,
+    billing_address_snapshot JSONB NOT NULL,
+    idempotency_key VARCHAR(128) UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    variant_id UUID NOT NULL,
+    sku_snapshot VARCHAR(64) NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    unit_price_paisa BIGINT NOT NULL,
+    quantity INT NOT NULL,
+    tax_rate NUMERIC(4,2) NOT NULL,
+    tax_amount_paisa BIGINT NOT NULL,
+    total_line_amount_paisa BIGINT NOT NULL,
+    allocated_batch_id UUID,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+2.4 Domain Module: Payment Reconciliation Gateway (com.maito.payment)Signature Verification: SHA-256 HMAC signature verification on inbound webhooks.Idempotency Gate: Prevents duplicate transaction allocations.Database Schema (Liquibase Changeset: db/changelog/changes/005-payment-schema.xml):SQLCREATE TABLE payment_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES orders(id),
+    gateway_name VARCHAR(32) NOT NULL,
+    gateway_order_id VARCHAR(128) NOT NULL,
+    gateway_payment_id VARCHAR(128) UNIQUE,
+    amount_paisa BIGINT NOT NULL,
+    currency VARCHAR(4) NOT NULL DEFAULT 'INR',
+    status VARCHAR(32) NOT NULL DEFAULT 'INITIATED',
+    error_code VARCHAR(64),
+    error_description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE payment_webhook_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    gateway_name VARCHAR(32) NOT NULL,
+    event_type VARCHAR(64) NOT NULL,
+    event_payload JSONB NOT NULL,
+    signature_header VARCHAR(512) NOT NULL,
+    is_processed BOOLEAN NOT NULL DEFAULT FALSE,
+    processed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+3. Git Branching Governance & Local Verification Protocol3.1 Git Branching StandardPrimary Branches:production (Direct mirror of live production)main (Golden trunk; PR only from uat)dev (Active development branch)Feature Branch Standard:Branch naming: feat/catalog-makhana (cut directly from dev).No direct pushes to main, production, or dev.3.2 Local Run & Verification CommandsCheck active branch:Bashgit branch --show-current
+Cut and switch to the first implementation branch:Bashgit checkout dev
+git pull origin dev
+git checkout -b feat/catalog-makhana
+Run local build and automated test suite:Bash# Windows
+.\mvnw.cmd clean test
+# Linux / macOS
+./mvnw clean test
+Start the application locally:Bash# Windows
+.\mvnw.cmd spring-boot:run
+# Linux / macOS
+./mvnw spring-boot:run
+Verify Swagger UI and OpenAPI documentation:URL: http://localhost:8080/swagger-ui.htmlAPI JSON: http://localhost:8080/v3/api-docs

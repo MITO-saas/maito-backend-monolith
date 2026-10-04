@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "maito-system-api-v1",
-    "name": "Maito E-Commerce Monolith API - System & Diagnostics",
-    "description": "Baseline API collection for Maito Backend Monolith Platform. Includes health diagnostics, help guidance, and OpenAPI spec endpoints.",
+    "_postman_id": "maito-saas-platform-v1",
+    "name": "Maito Platform - Multi-Tenant SaaS Control Plane & APIs",
+    "description": "Enterprise Control Plane, Dynamic Tenant Database Routing, and Health Diagnostics Collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -10,14 +10,68 @@
       "key": "base_url",
       "value": "http://localhost:8080",
       "type": "string"
+    },
+    {
+      "key": "tenant_id",
+      "value": "mito_crunch",
+      "type": "string"
     }
   ],
   "item": [
     {
-      "name": "Health & System Diagnostics",
+      "name": "1. Multi-Tenant Control Plane",
       "item": [
         {
-          "name": "System Health Check",
+          "name": "Provision Isolated Tenant (Zero-Deploy)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"mito_crunch\",\n  \"tenantSlug\": \"mitocrunch\",\n  \"legalName\": \"Mito Crunch Superfoods Pvt Ltd\",\n  \"primaryDomain\": \"store.mitocrunch.com\",\n  \"countryCode\": \"IN\",\n  \"currencyCode\": \"INR\",\n  \"initialConfig\": {\n    \"tier\": \"ENTERPRISE\",\n    \"max_pool_size\": 20\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/internal/platform/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "internal", "platform", "tenants"]
+            },
+            "description": "Automates physical database creation (db_mitocrunch), Liquibase schema execution, dedicated HikariCP pool registration, and domain cache pre-warming."
+          }
+        },
+        {
+          "name": "Get Tenant Control Plane Metadata",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/internal/platform/tenants/{{tenant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "internal", "platform", "tenants", "{{tenant_id}}"]
+            },
+            "description": "Inspects dynamic routing config, regional profile, custom domain, and account state."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Multi-Tenant Resolution & Routing Checks",
+      "item": [
+        {
+          "name": "System Health (Default / Master Context)",
           "request": {
             "method": "GET",
             "header": [
@@ -28,63 +82,53 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/health",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "health"
-              ]
-            },
-            "description": "Returns operational status, service identifier, version, timestamp, and environment profile."
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "health"]
+            }
           }
         },
         {
-          "name": "System Help & API Guidance",
+          "name": "Tenant Request via X-Tenant-ID Header",
           "request": {
             "method": "GET",
             "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
               {
                 "key": "Accept",
                 "value": "application/json"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/help",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "help"
-              ]
+              "raw": "{{base_url}}/api/v1/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "health"]
             },
-            "description": "Returns interactive Swagger UI and OpenAPI documentation links."
+            "description": "Routes request to dedicated tenant connection pool and validates response echo header."
           }
         },
         {
-          "name": "OpenAPI v3 Specification",
+          "name": "Tenant Request via Custom Domain Host Header",
           "request": {
             "method": "GET",
             "header": [
+              {
+                "key": "Host",
+                "value": "store.mitocrunch.com"
+              },
               {
                 "key": "Accept",
                 "value": "application/json"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/v3/api-docs",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "v3",
-                "api-docs"
-              ]
+              "raw": "{{base_url}}/api/v1/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "health"]
             },
-            "description": "Raw JSON OpenAPI 3.0 specification."
+            "description": "Resolves tenant context dynamically via domain mapping and caches in Redis."
           }
         }
       ]

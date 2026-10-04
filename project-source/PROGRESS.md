@@ -1,27 +1,23 @@
-# Maito E-Commerce - Modular Monolith Progress Tracker
+# Maito Multi-Tenant SaaS Platform - Modular Monolith Progress Tracker
 
-| # | Status | Task | Verify / Check |
-|---|--------|------|----------------|
-| 1 | ✅ Done | Master workspace structure initialized | Project tree, Maven wrapper (`mvnw.cmd`), git setup |
-| 2 | ✅ Done | Infrastructure & Local Database setup | PostgreSQL 16 `maito_db` with `maito_user` operational |
-| 3 | ✅ Done | Spring Boot 3.3.4 parent POM, Web, JPA, Actuator initialized | Java 21, Spring Boot framework operational |
-| 4 | ✅ Done | Liquibase database migration framework configured | `db/changelog/db.changelog-master.xml` with `01-init-schema.xml` |
-| 5 | ✅ Done | Foundational Health & Help API (`/api/v1/health`, `/api/v1/help`) | Live endpoint, unit tests 100% passing, Swagger UI & OpenAPI live |
-| 6 | ⏳ Awaiting PRD | Catalog Module (Products, Categories, SKUs, Inventory) | Ready to implement step-by-step upon PRD upload |
-| 7 | ⏳ Awaiting PRD | Order Processing Module | Ready to implement step-by-step upon PRD upload |
-| 8 | ⏳ Awaiting PRD | Payment & Logistics Integration Module | Ready to implement step-by-step upon PRD upload |
+| # | Status | Deliverable / Phase | Verification Artifacts |
+|---|--------|---------------------|------------------------|
+| 1 | ✅ Done | Master Workspace & Git Architecture | 5-tier MNC branching (`main`, `production`, `uat`, `test`, `dev`, `feat/*`) |
+| 2 | ✅ Done | Infrastructure & Local PostgreSQL | PostgreSQL 16 `maito_db`, Liquibase framework initialized |
+| 3 | ✅ Done | Spring Boot 3.3.4 & Java 21 LTS | Maven wrapper (`mvnw.cmd`), JPA, Actuator, Redis, Kafka |
+| 4 | ✅ Done | Foundational Health API | `/api/v1/health`, `/api/v1/help`, Swagger UI live at `/swagger-ui.html` |
+| 5 | ✅ Done | Master Control Plane Schema (Deliverable 1) | `001-master-control-plane.xml` (`global_tenants`, `global_tenant_domains`, `global_users`) with GIN/B-Tree indexes |
+| 6 | ✅ Done | Dynamic Tenant Base Schema (Deliverable 2) | `tenant-base-schema.xml` (`tenant_user_profiles`, `tenant_audit_log`) with dynamic JSONB matrices |
+| 7 | ✅ Done | Tenant Context & Resolution (Deliverable 3) | `TenantContextHolder` (TTL), `TenantResolutionFilter`, `TenantRoutingResolver` with 15-min Redis caching |
+| 8 | ✅ Done | Dynamic Routing & HikariCP Registry (Deliverable 4) | `DynamicTenantRoutingDataSource` (AbstractRoutingDataSource), `HikariPoolManager` (on-demand pool registration) |
+| 9 | ✅ Done | Automated Tenant Provisioning Engine (Deliverable 5) | `TenantProvisioningService`, `PlatformTenantController` (`POST /api/v1/internal/platform/tenants`) |
+| 10| ✅ Done | Automated Test Suite (Deliverable 6) | 13/13 tests passing: filter tests, isolation tests, provisioning tests |
+| 11| ✅ Done | API Contracts & Postman Sync (Deliverable 7) | `postman_collection.json`, `API_CURLS.md` updated with control plane requests |
+| 12| ⏳ Next | Phase 2: Domain Modules (Catalog, Order, Payment) | Ready for thin-slice implementation upon tenant validation |
 
-## Running the Application
+## Running the Automated Test Suite
 ```powershell
-# Set JAVA_HOME to JDK 21
 $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot"
-
-# Run tests
-.\mvnw.cmd test
-
-# Run application locally
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd clean test
 ```
-- Health Check: `http://localhost:8080/api/v1/health`
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+Result: 13 Tests Run, 0 Failures, 0 Errors.
