@@ -342,3 +342,30 @@ public class WebMvcConfig implements WebMvcConfigurer {
 |  (c) 2026 Mito Crunch. 30-Year High Availability Standards.                           |
 +---------------------------------------------------------------------------------------+
 ```
+
+---
+
+## 7. Single Runnable Monolith Deployment & Execution Guide
+
+The entire Maito platform (Spring Boot 3.3 backend + PostgreSQL dynamic routing + Server-Driven UI engine + localized static media pipeline + responsive visual storefront) builds into a single self-contained runnable JAR.
+
+### 7.1 Unified Maven Packaging
+Execute from the monorepo root:
+```powershell
+cmd.exe /c "set JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot&& mvnw.cmd clean package -DskipTests=false"
+```
+- Validates the complete 34-test regression suite.
+- Assembles `src/main/resources/static/` (HTML + WebP banners + product photos + brand vectors) into `BOOT-INF/classes/static/`.
+- Outputs fat JAR at: `target/maito-backend-monolith-0.0.1-SNAPSHOT.jar` (~92.6 MB).
+
+### 7.2 Booting the Monolithic Artifact
+Run directly with Java 21 LTS:
+```powershell
+& "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot\bin\java.exe" -jar target/maito-backend-monolith-0.0.1-SNAPSHOT.jar
+```
+
+### 7.3 Live Access Endpoints
+1. **Interactive Visual Storefront**: Open your browser at `http://localhost:8080/`.
+2. **Server-Driven UI Layout API**: `curl -X GET http://localhost:8080/api/v1/cms/pages/home -H "X-Tenant-ID: mito_crunch"`.
+3. **Local Media Asset Delivery**: `curl -I http://localhost:8080/assets/brands/mito_crunch/banners/hero_roasted_makhana.webp`.
+4. **OpenAPI / Swagger UI Documentation**: `http://localhost:8080/swagger-ui/index.html`.
