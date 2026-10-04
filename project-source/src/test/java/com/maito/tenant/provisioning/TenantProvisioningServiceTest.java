@@ -13,16 +13,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +26,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,6 +60,7 @@ class TenantProvisioningServiceTest {
         ReflectionTestUtils.setField(provisioningService, "masterUrl", "jdbc:postgresql://localhost:5432/maito_db");
         ReflectionTestUtils.setField(provisioningService, "masterUsername", "maito_user");
         ReflectionTestUtils.setField(provisioningService, "masterPassword", "maito_pass");
+        ReflectionTestUtils.setField(provisioningService, "isolatedDbUsers", false);
     }
 
     @Test
@@ -145,5 +140,47 @@ class TenantProvisioningServiceTest {
         assertThat(details.tenantSlug()).isEqualTo("mitocrunch");
         assertThat(details.primaryDomain()).isEqualTo("store.mitocrunch.com");
         assertThat(details.accountState()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("Decommissions tenant successfully, closes pool, and purges cache")
+    void shouldDecommissionTenantSuccessfully() {
+        GlobalTenant tenant = GlobalTenant.builder()
+                .tenantId("mito_crunch")
+                .tenantSlug("mitocrunch")
+                .legalEntityName("Mito Crunch Ltd")
+                .accountState("ACTIVE")
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+
+        GlobalTenantDomain domain = GlobalTenantDomain.builder()
+                .tenantId("mito_crunch")
+                .domainName("store.mitocrunch.com")
+                .isPrimary(true)
+                .build();
+
+        when(tenantRepository.findById("mito_crunch")).thenReturn(Optional.of(tenant));
+        when(domainRepository.findByTenantId("mito_crunch")).thenReturn(List.of(domain));
+
+        provisioningService.decommissionTenant("mito_crunch");
+
+        assertThat(tenant.getAccountState()).isEqualTo("DECOMMISSIONED");
+        verify(tenantRepository, times(1)).save(tenant);
+        verify(poolManager, times(1)).closeAndEvictPool("mito_crunch");
+        verify(routingResolver, times(1)).evictCache("mito_crunch", null);
+        verify(routingResolver, times(1)).evictCache("mitocrunch", null);
+        verify(routingResolver, times(1)).evictCache(null, "store.mitocrunch.com");
+    }
+
+    @Test
+    @DisplayName("Throws BusinessException when decommissioning non-existent tenant")
+    void shouldThrowWhenDecommissioningUnknownTenant() {
+        when(tenantRepository.findById("unknown")).thenReturn(Optional.empty());
+        when(tenantRepository.findByTenantSlug("unknown")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> provisioningService.decommissionTenant("unknown"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Tenant not found");
     }
 }

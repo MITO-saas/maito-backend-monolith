@@ -18,11 +18,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * High-precedence servlet filter extracting tenant identity from HTTP headers.
  * Priority: 1) X-Tenant-ID header, 2) Inbound Host header.
+ * Enforces security gates: HTTP 403 for SUSPENDED tenants, HTTP 404 for unresolvable tenants.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
@@ -77,15 +77,21 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        Optional<TenantContext> tenantContextOpt = resolveTenant(request);
+        TenantResolutionResult resolutionResult = resolveTenant(request);
 
-        if (tenantContextOpt.isEmpty()) {
+        if (resolutionResult.isSuspended()) {
+            writeErrorResponse(response, HttpStatus.FORBIDDEN, "TENANT_SUSPENDED",
+                    "Tenant account is currently suspended. Please contact platform administration.");
+            return;
+        }
+
+        if (!resolutionResult.isActive() || resolutionResult.context() == null) {
             writeErrorResponse(response, HttpStatus.NOT_FOUND, "TENANT_RESOLUTION_FAILED",
                     "Invalid or unresolvable tenant. Verify X-Tenant-ID header or Host mapping.");
             return;
         }
 
-        TenantContext tenantContext = tenantContextOpt.get();
+        TenantContext tenantContext = resolutionResult.context();
         TenantContextHolder.set(tenantContext);
         response.setHeader(TENANT_HEADER, tenantContext.tenantId());
 
@@ -96,7 +102,7 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
         }
     }
 
-    private Optional<TenantContext> resolveTenant(HttpServletRequest request) {
+    private TenantResolutionResult resolveTenant(HttpServletRequest request) {
         // 1. Priority: Explicit X-Tenant-ID header
         String tenantHeader = request.getHeader(TENANT_HEADER);
         if (tenantHeader != null && !tenantHeader.isBlank()) {
@@ -109,7 +115,7 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
             return routingResolver.resolveByDomain(hostHeader.trim());
         }
 
-        return Optional.empty();
+        return TenantResolutionResult.notFound("Missing tenant identifier");
     }
 
     private void writeErrorResponse(

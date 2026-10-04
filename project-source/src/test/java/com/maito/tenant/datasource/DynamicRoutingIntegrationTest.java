@@ -6,7 +6,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -98,5 +97,13 @@ class DynamicRoutingIntegrationTest {
         Connection conn = routingDataSource.getConnection();
         assertThat(conn).isNotNull();
         verify(tenantCDataSource, times(1)).getConnection();
+    }
+
+    @Test
+    @DisplayName("Dynamic pool unregistration removes DataSource from routing registry")
+    void shouldUnregisterTenantDataSource() {
+        assertThat(routingDataSource.hasTenantDataSource("tenant_a")).isTrue();
+        routingDataSource.unregisterTenantDataSource("tenant_a");
+        assertThat(routingDataSource.hasTenantDataSource("tenant_a")).isFalse();
     }
 }

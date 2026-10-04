@@ -46,6 +46,16 @@ public class DynamicTenantRoutingDataSource extends AbstractRoutingDataSource {
         log.info("Successfully registered dynamic DataSource for tenant [{}] in routing registry.", tenantId);
     }
 
+    public synchronized void unregisterTenantDataSource(String tenantId) {
+        if (tenantId == null) {
+            return;
+        }
+        targetDataSourcesMap.remove(tenantId);
+        setTargetDataSources(new HashMap<>(targetDataSourcesMap));
+        afterPropertiesSet();
+        log.info("Successfully unregistered DataSource for tenant [{}] from routing registry.", tenantId);
+    }
+
     public boolean hasTenantDataSource(String tenantId) {
         return tenantId != null && targetDataSourcesMap.containsKey(tenantId);
     }

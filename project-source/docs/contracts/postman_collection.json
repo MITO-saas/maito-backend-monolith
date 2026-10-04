@@ -1,85 +1,18 @@
 {
   "info": {
-    "_postman_id": "maito-saas-platform-v1",
-    "name": "Maito Platform - Multi-Tenant SaaS Control Plane & APIs",
-    "description": "Enterprise Control Plane, Dynamic Tenant Database Routing, and Health Diagnostics Collection.",
+    "name": "Maito Multi-Tenant Platform Core API",
+    "description": "Enterprise Control Plane, Dynamic Tenant Routing, Connection Telemetry, and Decommissioning",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8080",
-      "type": "string"
-    },
-    {
-      "key": "tenant_id",
-      "value": "mito_crunch",
-      "type": "string"
-    }
-  ],
   "item": [
     {
-      "name": "1. Multi-Tenant Control Plane",
+      "name": "Health & System",
       "item": [
         {
-          "name": "Provision Isolated Tenant (Zero-Deploy)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"mito_crunch\",\n  \"tenantSlug\": \"mitocrunch\",\n  \"legalName\": \"Mito Crunch Superfoods Pvt Ltd\",\n  \"primaryDomain\": \"store.mitocrunch.com\",\n  \"countryCode\": \"IN\",\n  \"currencyCode\": \"INR\",\n  \"initialConfig\": {\n    \"tier\": \"ENTERPRISE\",\n    \"max_pool_size\": 20\n  }\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/v1/internal/platform/tenants",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "internal", "platform", "tenants"]
-            },
-            "description": "Automates physical database creation (db_mitocrunch), Liquibase schema execution, dedicated HikariCP pool registration, and domain cache pre-warming."
-          }
-        },
-        {
-          "name": "Get Tenant Control Plane Metadata",
+          "name": "System Health Check",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/internal/platform/tenants/{{tenant_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "internal", "platform", "tenants", "{{tenant_id}}"]
-            },
-            "description": "Inspects dynamic routing config, regional profile, custom domain, and account state."
-          }
-        }
-      ]
-    },
-    {
-      "name": "2. Multi-Tenant Resolution & Routing Checks",
-      "item": [
-        {
-          "name": "System Health (Default / Master Context)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{base_url}}/api/v1/health",
               "host": ["{{base_url}}"],
@@ -88,50 +21,159 @@
           }
         },
         {
-          "name": "Tenant Request via X-Tenant-ID Header",
+          "name": "Actuator Tenant Pool Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "tenants"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Platform Control Plane",
+      "item": [
+        {
+          "name": "Provision Isolated Tenant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"mito_crunch\",\n  \"tenantSlug\": \"mitocrunch\",\n  \"legalName\": \"Mito Crunch Superfoods Pvt Ltd\",\n  \"primaryDomain\": \"store.mitocrunch.com\",\n  \"countryCode\": \"IN\",\n  \"currencyCode\": \"INR\",\n  \"initialAdminEmail\": \"admin@mitocrunch.com\",\n  \"initialConfig\": {\n    \"tier\": \"ENTERPRISE\",\n    \"max_pool_size\": 20\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/internal/platform/tenants",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "internal", "platform", "tenants"]
+            }
+          }
+        },
+        {
+          "name": "Get Tenant Metadata",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/internal/platform/tenants/mito_crunch",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "internal", "platform", "tenants", "mito_crunch"]
+            }
+          }
+        },
+        {
+          "name": "Tenant Pool Telemetry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/internal/platform/tenants/telemetry",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "internal", "platform", "tenants", "telemetry"]
+            }
+          }
+        },
+        {
+          "name": "Decommission Tenant",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/internal/platform/tenants/mito_crunch",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "internal", "platform", "tenants", "mito_crunch"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dynamic Routing & Security Gates",
+      "item": [
+        {
+          "name": "Route via Header (Active Tenant)",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_id}}"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
+                "value": "mito_crunch"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/health",
+              "raw": "{{base_url}}/api/v1/orders",
               "host": ["{{base_url}}"],
-              "path": ["api", "v1", "health"]
-            },
-            "description": "Routes request to dedicated tenant connection pool and validates response echo header."
+              "path": ["api", "v1", "orders"]
+            }
           }
         },
         {
-          "name": "Tenant Request via Custom Domain Host Header",
+          "name": "Route via Host Header (Custom Domain)",
           "request": {
             "method": "GET",
             "header": [
               {
                 "key": "Host",
                 "value": "store.mitocrunch.com"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/health",
+              "raw": "{{base_url}}/api/v1/orders",
               "host": ["{{base_url}}"],
-              "path": ["api", "v1", "health"]
-            },
-            "description": "Resolves tenant context dynamically via domain mapping and caches in Redis."
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Security Gate: Suspended Tenant (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "suspended_tenant"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Security Gate: Unknown Tenant (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "unknown_tenant"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
           }
         }
       ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
     }
   ]
 }

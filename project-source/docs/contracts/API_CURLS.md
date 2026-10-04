@@ -3,6 +3,7 @@
 Base URL: `http://localhost:8080`  
 Swagger UI: `http://localhost:8080/swagger-ui.html`  
 OpenAPI 3 Spec: `http://localhost:8080/v3/api-docs`  
+Actuator Telemetry: `http://localhost:8080/actuator/tenants`  
 
 ---
 
@@ -37,7 +38,7 @@ curl -X POST "http://localhost:8080/api/v1/internal/platform/tenants" \
     "tenantSlug": "mitocrunch",
     "primaryDomain": "store.mitocrunch.com",
     "databaseName": "db_mitocrunch",
-    "status": "ACTIVE",
+    "accountState": "ACTIVE",
     "provisionedAt": "2026-10-05T01:40:00.000Z",
     "message": "Tenant successfully provisioned with isolated database and live HikariCP pool."
   },
@@ -57,11 +58,35 @@ curl -X GET "http://localhost:8080/api/v1/internal/platform/tenants/mito_crunch"
 
 ---
 
-## 3. Verify Multi-Tenant Dynamic Database Routing
+## 3. Real-Time Connection Pool Telemetry
+
+### Inspect Active Tenant Connection Pools (Zero-Credential Leakage)
+```bash
+curl -X GET "http://localhost:8080/api/v1/internal/platform/tenants/telemetry" \
+  -H "Accept: application/json"
+```
+*Also available via Spring Boot Actuator*:
+```bash
+curl -X GET "http://localhost:8080/actuator/tenants"
+```
+
+---
+
+## 4. Decommission Tenant & Evict Pool
+
+### Decommission Tenant, Close Pool, and Purge Redis Cache
+```bash
+curl -X DELETE "http://localhost:8080/api/v1/internal/platform/tenants/mito_crunch" \
+  -H "Accept: application/json"
+```
+
+---
+
+## 5. Verify Multi-Tenant Dynamic Database Routing & Security Gates
 
 ### A. Route via `X-Tenant-ID` Header
 ```bash
-curl -i -X GET "http://localhost:8080/api/v1/health" \
+curl -i -X GET "http://localhost:8080/api/v1/orders" \
   -H "X-Tenant-ID: mito_crunch" \
   -H "Accept: application/json"
 ```
@@ -70,15 +95,32 @@ curl -i -X GET "http://localhost:8080/api/v1/health" \
 
 ### B. Route via Custom Domain `Host` Header
 ```bash
-curl -i -X GET "http://localhost:8080/api/v1/health" \
+curl -i -X GET "http://localhost:8080/api/v1/orders" \
   -H "Host: store.mitocrunch.com" \
   -H "Accept: application/json"
 ```
 *Response Header:* `X-Tenant-ID: mito_crunch` (dynamically resolved from domain).
 
-### C. Verify Inactive/Unknown Tenant Rejection (Security Gate)
+### C. Verify Suspended Tenant Rejection (Security Gate)
 ```bash
-curl -i -X GET "http://localhost:8080/api/v1/health" \
+curl -i -X GET "http://localhost:8080/api/v1/orders" \
+  -H "X-Tenant-ID: suspended_tenant" \
+  -H "Accept: application/json"
+```
+*Expected Response (HTTP 403 Forbidden):*
+```json
+{
+  "success": false,
+  "error": {
+    "code": "TENANT_SUSPENDED",
+    "message": "Tenant account is currently suspended. Please contact platform administration."
+  }
+}
+```
+
+### D. Verify Inactive/Unknown Tenant Rejection (Security Gate)
+```bash
+curl -i -X GET "http://localhost:8080/api/v1/orders" \
   -H "X-Tenant-ID: invalid_tenant_sku" \
   -H "Accept: application/json"
 ```

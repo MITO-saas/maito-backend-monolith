@@ -33,11 +33,13 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Automated zero-deploy tenant provisioning engine.
  * Programmatically provisions physical isolated PostgreSQL databases, applies tenant Liquibase
- * migrations, configures dedicated HikariCP pools, and registers dynamic routing entries in < 10 seconds.
+ * migrations, configures dedicated HikariCP pools, registers dynamic routing entries in < 10 seconds,
+ * and handles transactional compensating rollbacks on failure.
  */
 @Service
 @Slf4j
@@ -53,6 +55,9 @@ public class TenantProvisioningService {
 
     @Value("${spring.datasource.password:maito_pass}")
     private String masterPassword;
+
+    @Value("${platform.security.isolated-db-users:false}")
+    private boolean isolatedDbUsers;
 
     private final DataSource masterDataSource;
     private final GlobalTenantRepository tenantRepository;
@@ -92,69 +97,118 @@ public class TenantProvisioningService {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Domain already registered: " + primaryDomain);
         }
 
-        // 2. Physical Database Provisioning
         String targetDbName = "db_" + tenantSlug.replaceAll("[^a-z0-9_]", "");
-        createPhysicalDatabaseIfNotExists(targetDbName);
+        boolean dbCreated = false;
 
-        // 3. Automated Liquibase Schema Execution on Target DB
-        String tenantJdbcUrl = buildTenantJdbcUrl(targetDbName);
-        executeTenantLiquibase(tenantJdbcUrl);
+        try {
+            // 2. Physical Database Provisioning
+            createPhysicalDatabaseIfNotExists(targetDbName);
+            dbCreated = true;
 
-        // 4. Master Control Plane Persistence
-        Map<String, Object> routingConfig = buildRoutingConfig(targetDbName, tenantJdbcUrl, request.initialConfig());
-        Map<String, Object> regionalProfile = buildRegionalProfile(request);
-        Map<String, Object> tierEntitlements = buildTierEntitlements(request);
+            // Optional restricted DB user creation
+            createRestrictedUserIfEnabled(targetDbName, tenantSlug);
 
-        GlobalTenant tenant = GlobalTenant.builder()
-                .tenantId(tenantId)
-                .tenantSlug(tenantSlug)
-                .legalEntityName(request.legalName().trim())
-                .accountState("ACTIVE")
-                .routingConfig(routingConfig)
-                .regionalProfile(regionalProfile)
-                .tierEntitlements(tierEntitlements)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
-                .version(0L)
-                .build();
+            // 3. Automated Liquibase Schema Execution on Target DB
+            String tenantJdbcUrl = buildTenantJdbcUrl(targetDbName);
+            executeTenantLiquibase(tenantJdbcUrl);
+
+            // 4. Register Tenant Metadata in Master Control Plane
+            Map<String, Object> routingConfig = buildRoutingConfig(targetDbName, tenantJdbcUrl, request.initialConfig());
+            Map<String, Object> regionalProfile = buildRegionalProfile(request);
+            Map<String, Object> tierEntitlements = buildTierEntitlements(request);
+
+            GlobalTenant tenant = GlobalTenant.builder()
+                    .tenantId(tenantId)
+                    .tenantSlug(tenantSlug)
+                    .legalEntityName(request.legalName().trim())
+                    .accountState("ACTIVE")
+                    .routingConfig(routingConfig)
+                    .regionalProfile(regionalProfile)
+                    .tierEntitlements(tierEntitlements)
+                    .createdAt(Instant.now())
+                    .updatedAt(Instant.now())
+                    .version(0L)
+                    .build();
+            tenantRepository.save(tenant);
+
+            GlobalTenantDomain domain = GlobalTenantDomain.builder()
+                    .tenantId(tenantId)
+                    .domainName(primaryDomain)
+                    .isPrimary(true)
+                    .sslStatus("ACTIVE")
+                    .verificationToken("verified-auto-" + System.currentTimeMillis())
+                    .createdAt(Instant.now())
+                    .build();
+            domainRepository.save(domain);
+
+            // 5. Initialize Dedicated Hikari Pool in Routing DataSource
+            poolManager.getOrCreateTenantPool(tenantId, tenantJdbcUrl, masterUsername, masterPassword);
+
+            // 6. Pre-warm Redis routing cache
+            TenantContext tenantContext = new TenantContext(
+                    tenantId,
+                    tenantSlug,
+                    String.valueOf(regionalProfile.get("country")),
+                    String.valueOf(regionalProfile.get("currency")),
+                    String.valueOf(regionalProfile.get("locale")),
+                    targetDbName
+            );
+            routingResolver.cacheTenantContext(tenantContext, primaryDomain);
+
+            log.info("Tenant [{}] successfully provisioned with isolated database [{}] and pool registered.",
+                    tenantId, targetDbName);
+
+            return new TenantProvisioningResult(
+                    tenantId,
+                    tenantSlug,
+                    primaryDomain,
+                    targetDbName,
+                    "ACTIVE",
+                    Instant.now(),
+                    "Tenant successfully provisioned with isolated database and live HikariCP pool."
+            );
+        } catch (BusinessException be) {
+            if (ErrorCode.BUSINESS_RULE_VIOLATION.equals(be.getErrorCode())) {
+                throw be;
+            }
+            performCompensatingRollback(targetDbName, tenantId, dbCreated);
+            throw be;
+        } catch (Exception ex) {
+            log.error("Fatal error during tenant provisioning pipeline for [{}]. Initiating rollback...", tenantId, ex);
+            performCompensatingRollback(targetDbName, tenantId, dbCreated);
+            throw new BusinessException(ErrorCode.PROVISIONING_FAILED,
+                    "Tenant provisioning pipeline execution failed: " + ex.getMessage());
+        }
+    }
+
+    @Transactional
+    public void decommissionTenant(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Invalid tenant identifier");
+        }
+
+        String searchId = tenantId.trim().toLowerCase();
+        GlobalTenant tenant = tenantRepository.findById(tenantId.trim())
+                .or(() -> tenantRepository.findByTenantSlug(searchId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Tenant not found: " + tenantId));
+
+        tenant.setAccountState("DECOMMISSIONED");
+        tenant.setUpdatedAt(Instant.now());
         tenantRepository.save(tenant);
 
-        GlobalTenantDomain domain = GlobalTenantDomain.builder()
-                .tenantId(tenantId)
-                .domainName(primaryDomain)
-                .isPrimary(true)
-                .sslStatus("ACTIVE")
-                .verificationToken("verified-auto-" + System.currentTimeMillis())
-                .createdAt(Instant.now())
-                .build();
-        domainRepository.save(domain);
+        // 1. Evict and close active HikariCP connection pool
+        poolManager.closeAndEvictPool(tenant.getTenantId());
 
-        // 5. Initialize Dedicated Hikari Pool in Routing DataSource
-        poolManager.getOrCreateTenantPool(tenantId, tenantJdbcUrl, masterUsername, masterPassword);
+        // 2. Purge Redis routing cache
+        routingResolver.evictCache(tenant.getTenantId(), null);
+        routingResolver.evictCache(tenant.getTenantSlug(), null);
+        List<GlobalTenantDomain> domains = domainRepository.findByTenantId(tenant.getTenantId());
+        for (GlobalTenantDomain d : domains) {
+            routingResolver.evictCache(null, d.getDomainName());
+        }
 
-        // 6. Pre-warm Redis routing cache
-        TenantContext tenantContext = new TenantContext(
-                tenantId,
-                tenantSlug,
-                String.valueOf(regionalProfile.get("country")),
-                String.valueOf(regionalProfile.get("currency")),
-                String.valueOf(regionalProfile.get("locale")),
-                targetDbName
-        );
-        routingResolver.cacheTenantContext(tenantContext, primaryDomain);
-
-        log.info("Tenant [{}] successfully provisioned with isolated database [{}] and pool registered.",
-                tenantId, targetDbName);
-
-        return new TenantProvisioningResult(
-                tenantId,
-                tenantSlug,
-                primaryDomain,
-                targetDbName,
-                "ACTIVE",
-                Instant.now(),
-                "Tenant successfully provisioned with isolated database and live HikariCP pool."
-        );
+        log.warn("AUDIT LOG: Tenant [{}] (slug: {}) transitioned to DECOMMISSIONED. Active pool evicted and routing cache invalidated.",
+                tenant.getTenantId(), tenant.getTenantSlug());
     }
 
     @Transactional(readOnly = true)
@@ -184,6 +238,33 @@ public class TenantProvisioningService {
         );
     }
 
+    private void performCompensatingRollback(String dbName, String tenantId, boolean dbCreated) {
+        log.warn("COMPENSATING ROLLBACK: Cleaning up provisioning resources for tenant [{}] db [{}]", tenantId, dbName);
+        try {
+            poolManager.closeAndEvictPool(tenantId);
+        } catch (Exception e) {
+            log.warn("Rollback pool eviction error for [{}]: {}", tenantId, e.getMessage());
+        }
+
+        if (dbCreated) {
+            dropPhysicalDatabase(dbName);
+        }
+    }
+
+    private void dropPhysicalDatabase(String dbName) {
+        log.warn("COMPENSATING ACTION: Dropping physical database: [{}]", dbName);
+        try (Connection conn = masterDataSource.getConnection()) {
+            conn.setAutoCommit(true);
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '" + dbName + "' AND pid <> pg_backend_pid()");
+                stmt.executeUpdate("DROP DATABASE IF EXISTS " + dbName);
+                log.info("Successfully dropped database [{}] during compensating rollback.", dbName);
+            }
+        } catch (Exception e) {
+            log.error("Failed to drop database [{}] during compensating rollback: {}", dbName, e.getMessage());
+        }
+    }
+
     private void createPhysicalDatabaseIfNotExists(String dbName) {
         log.info("Verifying physical database existence: [{}]", dbName);
         try (Connection conn = masterDataSource.getConnection()) {
@@ -202,7 +283,6 @@ public class TenantProvisioningService {
                 log.info("Executing native SQL to create physical database: [{}]", dbName);
                 conn.setAutoCommit(true);
                 try (Statement stmt = conn.createStatement()) {
-                    // Safe identifier quoting after regex validation
                     stmt.executeUpdate("CREATE DATABASE " + dbName + " OWNER " + masterUsername);
                 }
             } else {
@@ -212,6 +292,33 @@ public class TenantProvisioningService {
             log.error("Failed to verify/create database [{}]: {}", dbName, e.getMessage(), e);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
                     "Failed to provision physical database: " + e.getMessage());
+        }
+    }
+
+    private void createRestrictedUserIfEnabled(String dbName, String tenantSlug) {
+        if (!isolatedDbUsers) {
+            log.debug("Restricted DB user creation skipped (isolated-db-users=false)");
+            return;
+        }
+        String restrictedUser = "usr_" + tenantSlug.replaceAll("[^a-z0-9_]", "");
+        String restrictedPass = "pwd_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        log.info("Creating isolated restricted database user [{}] for [{}]", restrictedUser, dbName);
+        try (Connection conn = masterDataSource.getConnection()) {
+            conn.setAutoCommit(true);
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("DO $$\n" +
+                        "BEGIN\n" +
+                        "    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '" + restrictedUser + "') THEN\n" +
+                        "        CREATE ROLE " + restrictedUser + " WITH LOGIN PASSWORD '" + restrictedPass + "';\n" +
+                        "    END IF;\n" +
+                        "END\n" +
+                        "$$;");
+                stmt.execute("GRANT CONNECT ON DATABASE " + dbName + " TO " + restrictedUser);
+                log.info("Successfully granted CONNECT on [{}] to [{}]", dbName, restrictedUser);
+            }
+        } catch (Exception e) {
+            log.error("Failed to configure isolated DB user [{}]: {}", restrictedUser, e.getMessage(), e);
+            throw new BusinessException(ErrorCode.PROVISIONING_FAILED, "Failed to create restricted database user: " + e.getMessage());
         }
     }
 

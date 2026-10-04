@@ -1,6 +1,5 @@
 package com.maito.tenant.routing;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maito.tenant.domain.GlobalTenant;
 import com.maito.tenant.domain.GlobalTenantDomain;
@@ -19,6 +18,7 @@ import java.util.Optional;
 /**
  * 2-tier caching resolver: Redis (L1) -> Global Master PostgreSQL (L2).
  * Caches resolved routing metadata for 15 minutes.
+ * Returns TenantResolutionResult distinguishing between ACTIVE, SUSPENDED, and NOT_FOUND states.
  */
 @Service
 @Slf4j
@@ -44,15 +44,15 @@ public class TenantRoutingResolver {
     }
 
     @Transactional(readOnly = true)
-    public Optional<TenantContext> resolveByTenantId(String tenantId) {
+    public TenantResolutionResult resolveByTenantId(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) {
-            return Optional.empty();
+            return TenantResolutionResult.notFound("Missing tenant identifier");
         }
 
         String cacheKey = CACHE_KEY_PREFIX + "id:" + tenantId.trim().toLowerCase();
         Optional<CachedTenantRouting> cached = getFromCache(cacheKey);
         if (cached.isPresent()) {
-            return mapToContextIfActive(cached.get());
+            return mapToResult(cached.get());
         }
 
         Optional<GlobalTenant> tenantOpt = tenantRepository.findById(tenantId.trim())
@@ -60,20 +60,20 @@ public class TenantRoutingResolver {
 
         if (tenantOpt.isEmpty()) {
             log.warn("Tenant not found by ID or slug: [{}]", tenantId);
-            return Optional.empty();
+            return TenantResolutionResult.notFound(tenantId);
         }
 
         GlobalTenant tenant = tenantOpt.get();
         CachedTenantRouting payload = toCachedRouting(tenant);
         putToCache(cacheKey, payload);
 
-        return mapToContextIfActive(payload);
+        return mapToResult(payload);
     }
 
     @Transactional(readOnly = true)
-    public Optional<TenantContext> resolveByDomain(String domainName) {
+    public TenantResolutionResult resolveByDomain(String domainName) {
         if (domainName == null || domainName.isBlank()) {
-            return Optional.empty();
+            return TenantResolutionResult.notFound("Missing domain name");
         }
 
         String cleanDomain = cleanDomain(domainName);
@@ -81,16 +81,18 @@ public class TenantRoutingResolver {
 
         Optional<CachedTenantRouting> cached = getFromCache(cacheKey);
         if (cached.isPresent()) {
-            return mapToContextIfActive(cached.get());
+            return mapToResult(cached.get());
         }
 
         Optional<GlobalTenantDomain> domainOpt = domainRepository.findByDomainName(cleanDomain);
         if (domainOpt.isEmpty()) {
             log.warn("Tenant domain not registered: [{}]", cleanDomain);
-            return Optional.empty();
+            return TenantResolutionResult.notFound(cleanDomain);
         }
 
-        return resolveByTenantId(domainOpt.get().getTenantId()).map(ctx -> {
+        TenantResolutionResult result = resolveByTenantId(domainOpt.get().getTenantId());
+        if (result.isActive()) {
+            TenantContext ctx = result.context();
             putToCache(cacheKey, new CachedTenantRouting(
                     ctx.tenantId(),
                     ctx.tenantSlug(),
@@ -100,8 +102,8 @@ public class TenantRoutingResolver {
                     ctx.databaseName(),
                     "ACTIVE"
             ));
-            return ctx;
-        });
+        }
+        return result;
     }
 
     public void cacheTenantContext(TenantContext context, String domainName) {
@@ -137,19 +139,23 @@ public class TenantRoutingResolver {
         }
     }
 
-    private Optional<TenantContext> mapToContextIfActive(CachedTenantRouting routing) {
-        if (!"ACTIVE".equalsIgnoreCase(routing.accountState())) {
-            log.warn("Tenant [{}] is in inactive state: [{}]", routing.tenantId(), routing.accountState());
-            return Optional.empty();
+    private TenantResolutionResult mapToResult(CachedTenantRouting routing) {
+        String state = routing.accountState();
+        if ("SUSPENDED".equalsIgnoreCase(state) || "INACTIVE".equalsIgnoreCase(state) || "DECOMMISSIONED".equalsIgnoreCase(state)) {
+            log.warn("Tenant [{}] is in restricted state: [{}]", routing.tenantId(), state);
+            return TenantResolutionResult.suspended(routing.tenantId(),
+                    "Tenant account is currently suspended. Please contact platform administration.");
         }
-        return Optional.of(new TenantContext(
+
+        TenantContext ctx = new TenantContext(
                 routing.tenantId(),
                 routing.tenantSlug(),
                 routing.region(),
                 routing.currency(),
                 routing.locale(),
                 routing.databaseName()
-        ));
+        );
+        return TenantResolutionResult.active(ctx);
     }
 
     private CachedTenantRouting toCachedRouting(GlobalTenant tenant) {
