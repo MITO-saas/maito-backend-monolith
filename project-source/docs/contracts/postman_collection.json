@@ -2,7 +2,8 @@
   "info": {
     "name": "Maito Multi-Tenant Platform Core API",
     "description": "Enterprise Control Plane, Dynamic Tenant Routing, Connection Telemetry, and Decommissioning",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0-phase1-core"
   },
   "item": [
     {
@@ -15,10 +16,33 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/api/v1/health",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "health"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Health status is UP\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.status).to.eql(\"UP\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Actuator Tenant Pool Metrics",
@@ -27,10 +51,33 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/actuator/tenants",
-              "host": ["{{base_url}}"],
-              "path": ["actuator", "tenants"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "actuator",
+                "tenants"
+              ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response contains tenantPools telemetry\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"tenantPools\");",
+                  "    pm.expect(jsonData).to.have.property(\"activeTenants\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
@@ -53,10 +100,37 @@
             },
             "url": {
               "raw": "{{base_url}}/api/v1/internal/platform/tenants",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "internal", "platform", "tenants"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "internal",
+                "platform",
+                "tenants"
+              ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 or 200\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test(\"Envelope success is true\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.tenantId).to.eql(\"mito_crunch\");",
+                  "    pm.expect(jsonData.data.status).to.eql(\"ACTIVE\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Get Tenant Metadata",
@@ -65,10 +139,38 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/api/v1/internal/platform/tenants/mito_crunch",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "internal", "platform", "tenants", "mito_crunch"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "internal",
+                "platform",
+                "tenants",
+                "mito_crunch"
+              ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Returns correct tenant metadata\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.tenantId).to.eql(\"mito_crunch\");",
+                  "    pm.expect(jsonData.data.tenantSlug).to.eql(\"mitocrunch\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Tenant Pool Telemetry",
@@ -77,10 +179,37 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/api/v1/internal/platform/tenants/telemetry",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "internal", "platform", "tenants", "telemetry"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "internal",
+                "platform",
+                "tenants",
+                "telemetry"
+              ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Pool telemetry returns valid list\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data).to.be.an(\"array\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Decommission Tenant",
@@ -89,10 +218,37 @@
             "header": [],
             "url": {
               "raw": "{{base_url}}/api/v1/internal/platform/tenants/mito_crunch",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "internal", "platform", "tenants", "mito_crunch"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "internal",
+                "platform",
+                "tenants",
+                "mito_crunch"
+              ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Tenant state transitioned to DECOMMISSIONED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "    pm.expect(jsonData.data.accountState).to.eql(\"DECOMMISSIONED\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     },
@@ -111,8 +267,14 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/orders",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "orders"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
             }
           }
         },
@@ -128,8 +290,14 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/orders",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "orders"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
             }
           }
         },
@@ -145,10 +313,34 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/orders",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "orders"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "pm.test(\"Error code is TENANT_SUSPENDED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.error.code).to.eql(\"TENANT_SUSPENDED\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Security Gate: Unknown Tenant (404)",
@@ -162,10 +354,34 @@
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/orders",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "orders"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test(\"Error code is TENANT_NOT_FOUND\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(false);",
+                  "    pm.expect(jsonData.error.code).to.eql(\"TENANT_NOT_FOUND\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         }
       ]
     }
