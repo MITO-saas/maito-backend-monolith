@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: CMS Pages Table -->
+    <changeSet id="001-create-cms-pages" author="maito-cms-architect">
+        <comment>Declarative CMS Pages for Server-Driven UI</comment>
+        <createTable tableName="cms_pages">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="page_slug" type="VARCHAR(128)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="title" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="seo_metadata" type="JSONB" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_published" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="cms_pages" indexName="idx_cms_pages_slug">
+            <column name="page_slug"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 002: CMS Sections Table -->
+    <changeSet id="002-create-cms-sections" author="maito-cms-architect">
+        <comment>Declarative SDUI Sections linked to CMS Pages</comment>
+        <createTable tableName="cms_sections">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="page_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_cms_sections_page" references="cms_pages(id)" deleteCascade="true"/>
+            </column>
+            <column name="component_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_order" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="visibility_rules" type="JSONB" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content_payload" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="cms_sections" indexName="idx_cms_sections_page_order">
+            <column name="page_id"/>
+            <column name="display_order"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 003: GIN Indexes on cms_sections -->
+    <changeSet id="003-create-cms-sections-gin-indexes" author="maito-cms-architect" dbms="postgresql">
+        <comment>GIN indexes on SDUI content payload and visibility rules</comment>
+        <sql>
+            CREATE INDEX idx_cms_sections_payload_gin ON cms_sections USING gin (content_payload);
+            CREATE INDEX idx_cms_sections_visibility_gin ON cms_sections USING gin (visibility_rules);
+        </sql>
+    </changeSet>
+
+    <!-- 004: CMS Themes Table -->
+    <changeSet id="004-create-cms-themes" author="maito-cms-architect">
+        <comment>Storefront dynamic theme and brand design tokens</comment>
+        <createTable tableName="cms_themes">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="theme_name" type="VARCHAR(64)" defaultValue="DEFAULT_THEME">
+                <constraints nullable="false"/>
+            </column>
+            <column name="brand_tokens" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- 005: Seed Default Home Page Layout, Sections & Theme -->
+    <changeSet id="005-seed-default-home-page-layout" author="maito-cms-architect" dbms="postgresql">
+        <comment>Default published Home layout and brand theme seed for instant storefront rendering</comment>
+        <sql>
+            INSERT INTO cms_pages (id, page_slug, title, seo_metadata, is_published)
+            VALUES ('a0000000-0000-0000-0000-000000000001', 'home', 'Mito Crunch Home',
+                    '{"metaTitle": "Mito Crunch - Farm-Fresh Roasted Jumbo Makhana", "metaDescription": "100% Organic, Handpicked from Mithila Wetlands. Roasted with zero trans-fats."}'::jsonb, true)
+            ON CONFLICT (page_slug) DO NOTHING;
+
+            INSERT INTO cms_themes (id, theme_name, brand_tokens, is_active)
+            VALUES ('b0000000-0000-0000-0000-000000000001', 'DEFAULT_THEME',
+                    '{"primaryColor": "#D97706", "fontHeadings": "Cabinet Grotesk", "fontBody": "Inter", "borderRadiusPx": 8}'::jsonb, true)
+            ON CONFLICT (id) DO NOTHING;
+
+            INSERT INTO cms_sections (id, page_id, component_type, display_order, is_active, visibility_rules, content_payload)
+            VALUES 
+            ('c0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'PROMO_STRIP', 1, true, '{}'::jsonb,
+             '{"text": "Free Delivery on orders above ₹499 | Use Code: CRUNCHFREE", "backgroundColor": "#0F172A", "textColor": "#F8FAFC"}'::jsonb),
+            ('c0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'HERO_CAROUSEL', 2, true, '{}'::jsonb,
+             '{"slides": [{"title": "Farm-Fresh Roasted Jumbo Makhana", "subtitle": "100% Organic, Handpicked from Mithila Wetlands", "ctaText": "Shop Collection", "ctaLink": "/collections/makhana", "imageUrl": "/assets/brands/mito_crunch/banners/hero_roasted_makhana.webp"}]}'::jsonb),
+            ('c0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'FEATURED_GRID', 3, true, '{}'::jsonb,
+             '{"heading": "Trending Flavors", "items": [{"name": "Peri Peri Crunch", "tag": "Best Seller", "imageUrl": "/assets/brands/mito_crunch/products/makhana_peri_peri.webp"}, {"name": "Himalayan Pink Salt", "tag": "Classic", "imageUrl": "/assets/brands/mito_crunch/products/makhana_himalayan_salt.webp"}, {"name": "Mint Magic", "tag": "Popular", "imageUrl": "/assets/brands/mito_crunch/products/makhana_mint_magic.webp"}]}'::jsonb),
+            ('c0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'BRAND_STORY', 4, true, '{}'::jsonb,
+             '{"heading": "From Pond to Pack", "body": "Directly sourced from Bihar farmers, roasted with zero trans-fats."}'::jsonb),
+            ('c0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000001', 'FOOTER_LINKS', 5, true, '{}'::jsonb,
+             '{"social": {"instagram": "@mitocrunch"}, "policies": ["Privacy Policy", "Terms of Service"]}'::jsonb)
+            ON CONFLICT (id) DO NOTHING;
+        </sql>
+    </changeSet>
+
+
+    <!-- 005: Update Mito Crunch Asset Paths to Localized Immutable Assets -->
+    <changeSet id="005-update-mitocrunch-asset-paths" author="maito-cms-architect">
+        <comment>Switch external CDN placeholders to localized 10-year immutable assets</comment>
+        <sql>
+            UPDATE cms_sections
+            SET content_payload = '{"slides": [{"title": "Farm-Fresh Roasted Jumbo Makhana", "subtitle": "100% Organic, Handpicked from Mithila Wetlands", "ctaText": "Shop Collection", "ctaLink": "/collections/makhana", "imageUrl": "/assets/brands/mito_crunch/banners/hero_roasted_makhana.webp"}]}'::jsonb
+            WHERE id = 'c0000000-0000-0000-0000-000000000002';
+
+            UPDATE cms_sections
+            SET content_payload = '{"heading": "Trending Flavors", "items": [{"name": "Peri Peri Crunch", "tag": "Best Seller", "imageUrl": "/assets/brands/mito_crunch/products/makhana_peri_peri.webp"}, {"name": "Himalayan Pink Salt", "tag": "Classic", "imageUrl": "/assets/brands/mito_crunch/products/makhana_himalayan_salt.webp"}, {"name": "Mint Magic", "tag": "Popular", "imageUrl": "/assets/brands/mito_crunch/products/makhana_mint_magic.webp"}]}'::jsonb
+            WHERE id = 'c0000000-0000-0000-0000-000000000003';
+        </sql>
+    </changeSet>
+</databaseChangeLog>
