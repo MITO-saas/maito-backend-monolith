@@ -1,0 +1,82 @@
+Detailed End-to-End System Topology
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                CLIENT & EDGE INGRESS TIER                                       │
+│  - Web Storefront (Next.js/React)       - Mobile Browser / PWA      - Admin Backoffice Portal   │
+└────────────────────────────────────────────────┬────────────────────────────────────────────────┘
+                                                 │ HTTPS / JSON (Port 8080)
+                                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                      SPRING BOOT 3.3.4 MODULAR MONOLITH CORE ENGINE                             │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [SHARED FOUNDATION & SECURITY FILTER CHAIN]                                                     │
+│ - CorrelationFilter (TraceId generator)  - SecurityFilterChain (Stateless JWT Validator)       │
+│ - ApiResponse<T> Global Envelope         - GlobalExceptionHandler & BusinessException           │
+│ - BaseAuditableEntity (UUID PK, Created/Modified Dates, Version Optimistic Lock)                │
+├─────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [DOMAIN MODULES - STRICT PACKAGE ISOLATION (No Cross-Domain Entity Relationships)]              │
+│                                                                                                 │
+│  ┌───────────────────────┐  ┌───────────────────────┐  ┌─────────────────────────────────────┐  │
+│  │   com.maito.catalog   │  │    com.maito.order    │  │          com.maito.payment          │  │
+│  │ - Product Categories  │  │ - Redis Cart Engine   │  │ - Razorpay / Cashfree Gateway       │  │
+│  │ - 4/5/6-Suta Makhana  │  │ - 2-Phase Stock Lock  │  │ - HMAC-SHA256 Webhook Verification  │  │
+│  │ - Grams/Kg Packaging  │  │ - Order FSM Lifecycle │  │ - Webhook Idempotency Store         │  │
+│  │ - FIFO Batch Expiry   │  │ - Snapshot Snapshots  │  │ - Automated Settlement Engine       │  │
+│  └───────────────────────┘  └───────────────────────┘  └─────────────────────────────────────┘  │
+│                                                                                                 │
+│  ┌──────────────────────────────────────────────────┐  ┌─────────────────────────────────────┐  │
+│  │                 com.maito.customer               │  │           com.maito.cms             │  │
+│  │ - Passwordless Phone OTP Authentication           │  │ - Server-Driven UI (SDUI) Engine    │  │
+│  │ - Address Book (Shipping & Billing)              │  │ - JSONB Dynamic Component Trees     │  │
+│  │ - D2C Retail vs B2B Wholesale Profiles           │  │ - Hero Carousels, Seasonal Banners  │  │
+│  │ - GSTIN Verification & Net-30 Credit Tiers       │  │ - Recipe Collections & Nutrition    │  │
+│  └──────────────────────────────────────────────────┘  └─────────────────────────────────────┘  │
+└────────────────────────────────┬───────────────────────────────────────┬────────────────────────┘
+                                 │                                       │
+                                 ▼                                       ▼
+┌──────────────────────────────────────────────────┐   ┌──────────────────────────────────────────┐
+│          PERSISTENCE & MIGRATION TIER            │   │         CACHE & LOCK ENGINE              │
+│       PostgreSQL 16 (`maito_db`)                 │   │         Redis 7.2 (Lettuce)              │
+├──────────────────────────────────────────────────┤   ├──────────────────────────────────────────┤
+│ - Liquibase Version-Controlled Changesets:       │   │ - Ephemeral User Carts (TTL: 14 Days)    │
+│   * `001-initial-schema.xml`                     │   │ - Redisson Distributed Locks (Checkout)  │
+│   * `002-catalog-schema.xml`                     │   │ - 15-Minute Soft Stock Reservations      │
+│   * `003-customer-schema.xml`                    │   │ - SDUI Compiled Page Cache               │
+│   * `004-order-schema.xml`                       │   │ - SMS/WhatsApp OTP Tokens (TTL: 180s)    │
+│   * `005-payment-schema.xml`                     │   └──────────────────────────────────────────┘
+│   * `006-cms-schema.xml`                         │
+│ - Strict Foreign Keys & Indexes                  │
+└──────────────────────────────────────────────────┘
+
+
+
+AND,
+[ Inbound Request: Host / X-Tenant-ID ]
+                                              │
+                                              ▼
+                                 [ TenantResolutionFilter ]
+                          (Reads Host or 'X-Tenant-ID' Header)
+                                              │
+                     ┌────────────────────────┴────────────────────────┐
+                     ▼ (Check Cache)                                   ▼ (Cache Miss)
+            [ Redis Tenant Cache ]                         [ Global Master DB ]
+            Key: `tenant:lookup:{host}`                 (`db_global_master.global_tenants`)
+                     │                                                 │
+                     └────────────────────────┬────────────────────────┘
+                                              ▼
+                            [ TenantContextHolder (ThreadLocal) ]
+                            - Binds Tenant ID to current request thread
+                                              │
+                                              ▼
+                             [ DynamicTenantRoutingDataSource ]
+                               (Spring AbstractRoutingDataSource)
+                                              │
+                       ┌──────────────────────┴──────────────────────┐
+                       ▼ (Existing Pool)                             ▼ (First Request / New Tenant)
+              [ Dynamic HikariCP Registry ]             [ HikariCP Lazy Initializer ]
+              (Routes SQL to Tenant DataSource)         (Decrypts DB credentials from Master,
+                       │                                 spins HikariPool, adds to registry)
+        ┌──────────────┼──────────────┐                              │
+        ▼              ▼              ▼                              ▼
+  [ Tenant DB 1 ] [ Tenant DB 2 ] [ Tenant DB 3 ]        [ Auto Liquibase Provisioner ]
+   (db_mito)       (db_gupta)      (db_vijiya)          (Runs changesets on newly created DB)
+S

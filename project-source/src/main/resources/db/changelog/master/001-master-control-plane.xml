@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Global Tenants Control Plane Registry -->
+    <changeSet id="001-create-global-tenants" author="maito-architect">
+        <comment>Create global_tenants master routing control plane table</comment>
+        <createTable tableName="global_tenants">
+            <column name="tenant_id" type="VARCHAR(64)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_slug" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="legal_entity_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="account_state" type="VARCHAR(32)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="routing_config" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="regional_profile" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tier_entitlements" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="global_tenants" indexName="idx_global_tenants_slug">
+            <column name="tenant_slug"/>
+        </createIndex>
+        <createIndex tableName="global_tenants" indexName="idx_global_tenants_state">
+            <column name="account_state"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 002: GIN Indexes on global_tenants JSONB columns -->
+    <changeSet id="002-create-global-tenants-gin-indexes" author="maito-architect" dbms="postgresql">
+        <comment>GIN indexes for high-speed dynamic JSONB queries</comment>
+        <sql>
+            CREATE INDEX idx_global_tenants_routing_gin ON global_tenants USING gin (routing_config);
+            CREATE INDEX idx_global_tenants_regional_gin ON global_tenants USING gin (regional_profile);
+            CREATE INDEX idx_global_tenants_tier_gin ON global_tenants USING gin (tier_entitlements);
+        </sql>
+    </changeSet>
+
+    <!-- 003: Global Tenant Domains -->
+    <changeSet id="003-create-global-tenant-domains" author="maito-architect">
+        <comment>Multi-tenant custom domain mappings</comment>
+        <createTable tableName="global_tenant_domains">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="VARCHAR(64)">
+                <constraints nullable="false" foreignKeyName="fk_domains_tenant" references="global_tenants(tenant_id)"/>
+            </column>
+            <column name="domain_name" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="is_primary" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ssl_status" type="VARCHAR(32)" defaultValue="PROVISIONED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="verification_token" type="VARCHAR(128)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="global_tenant_domains" indexName="idx_tenant_domains_lookup">
+            <column name="domain_name"/>
+        </createIndex>
+        <createIndex tableName="global_tenant_domains" indexName="idx_tenant_domains_tenant_id">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 004: Global Users Directory -->
+    <changeSet id="004-create-global-users" author="maito-architect">
+        <comment>Global single-identity directory for cross-tenant SSO</comment>
+        <createTable tableName="global_users">
+            <column name="global_user_id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="phone_e164" type="VARCHAR(32)">
+                <constraints unique="true"/>
+            </column>
+            <column name="primary_email" type="VARCHAR(255)">
+                <constraints unique="true"/>
+            </column>
+            <column name="credential_vault" type="JSONB"/>
+            <column name="security_metadata" type="JSONB"/>
+            <column name="account_status" type="VARCHAR(32)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="global_users" indexName="idx_global_users_phone">
+            <column name="phone_e164"/>
+        </createIndex>
+        <createIndex tableName="global_users" indexName="idx_global_users_email">
+            <column name="primary_email"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 005: GIN Indexes on global_users JSONB columns -->
+    <changeSet id="005-create-global-users-gin-indexes" author="maito-architect" dbms="postgresql">
+        <comment>GIN indexes for global user credentials and metadata</comment>
+        <sql>
+            CREATE INDEX idx_global_users_cred_gin ON global_users USING gin (credential_vault);
+            CREATE INDEX idx_global_users_security_gin ON global_users USING gin (security_metadata);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
