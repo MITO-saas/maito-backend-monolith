@@ -99,4 +99,6 @@
         </sql>
     </changeSet>
 
+    <include file="002-cms-schema.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

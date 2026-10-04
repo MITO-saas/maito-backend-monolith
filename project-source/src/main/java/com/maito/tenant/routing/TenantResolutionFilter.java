@@ -32,6 +32,10 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
     public static final String TENANT_HEADER = "X-Tenant-ID";
 
     private static final List<String> BYPASS_PATTERNS = List.of(
+            "/",
+            "/index.html",
+            "/assets/**",
+            "/favicon.ico",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/v3/api-docs/**",

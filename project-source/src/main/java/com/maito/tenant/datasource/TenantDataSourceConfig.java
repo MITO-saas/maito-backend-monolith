@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
@@ -43,7 +44,7 @@ public class TenantDataSourceConfig {
     }
 
     @Bean
-    public DynamicTenantRoutingDataSource dynamicTenantRoutingDataSource(DataSource masterDataSource) {
+    public DynamicTenantRoutingDataSource dynamicTenantRoutingDataSource(@Qualifier("masterDataSource") DataSource masterDataSource) {
         return new DynamicTenantRoutingDataSource(masterDataSource);
     }
 

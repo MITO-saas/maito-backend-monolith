@@ -3,7 +3,7 @@
     "name": "Maito Multi-Tenant Platform Core API",
     "description": "Enterprise Control Plane, Dynamic Tenant Routing, Connection Telemetry, and Decommissioning",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.0.0-phase1-core"
+    "version": "2.0.0-phase2-cms"
   },
   "item": [
     {
@@ -376,6 +376,243 @@
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData.success).to.eql(false);",
                   "    pm.expect(jsonData.error.code).to.eql(\"TENANT_NOT_FOUND\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Headless CMS & SDUI Engine",
+      "description": "Server-Driven UI layout retrieval and administrative page/section management with multi-tenant isolation.",
+      "item": [
+        {
+          "name": "Get Published Page Layout (Home)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "en",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/cms/pages/home",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cms",
+                "pages",
+                "home"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"ApiResponse envelope is valid\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data.pageSlug).to.eql(\"home\");",
+                  "    pm.expect(json.data.sections).to.be.an(\"array\");",
+                  "    pm.expect(json.data.sections.length).to.be.at.least(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin - Create/Update Page Layout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pageSlug\": \"about-us\",\n  \"title\": \"About Mito Crunch\",\n  \"seoMetadata\": {\n    \"metaTitle\": \"About Us | Mito Crunch\"\n  },\n  \"isPublished\": true,\n  \"sections\": [\n    {\n      \"componentType\": \"BRAND_STORY\",\n      \"displayOrder\": 1,\n      \"isActive\": true,\n      \"visibilityRules\": {},\n      \"contentPayload\": {\n        \"heading\": \"Our Roots\",\n        \"body\": \"Born in Bihar.\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/cms/pages",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "cms",
+                "pages"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 201\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "pm.test(\"Page created successfully\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.data.pageSlug).to.eql(\"about-us\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin - Hot-Update Section Payload",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayOrder\": 1,\n  \"isActive\": true,\n  \"visibilityRules\": {},\n  \"contentPayload\": {\n    \"text\": \"Updated Promo: 20% off all orders!\",\n    \"backgroundColor\": \"#1E293B\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/cms/sections/44444444-4444-4444-4444-444444444441",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "cms",
+                "sections",
+                "44444444-4444-4444-4444-444444444441"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Section updated successfully\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Immutable Static Media Asset (Hero Banner)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assets/brands/mito_crunch/banners/hero_roasted_makhana.webp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assets",
+                "brands",
+                "mito_crunch",
+                "banners",
+                "hero_roasted_makhana.webp"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Asset returns HTTP 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Cache-Control header has max-age\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"max-age=2592000\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Immutable Static Media Asset (Peri Peri Product)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assets/brands/mito_crunch/products/makhana_peri_peri.webp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "assets",
+                "brands",
+                "mito_crunch",
+                "products",
+                "makhana_peri_peri.webp"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Product image returns HTTP 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
                   "});"
                 ],
                 "type": "text/javascript"

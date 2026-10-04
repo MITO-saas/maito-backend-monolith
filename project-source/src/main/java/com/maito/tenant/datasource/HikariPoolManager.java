@@ -2,6 +2,8 @@ package com.maito.tenant.datasource;
 
 import com.maito.tenant.api.dto.TenantPoolMetrics;
 import com.maito.tenant.domain.GlobalTenant;
+import com.maito.tenant.routing.TenantContextHolder;
+import com.maito.tenant.routing.TenantContext;
 import com.maito.tenant.repository.GlobalTenantRepository;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -71,7 +73,10 @@ public class HikariPoolManager {
             return null;
         }
 
+        TenantContext prevContext = TenantContextHolder.get();
         try {
+            // Temporarily clear tenant context so the repository lookup routes strictly to Master Control Plane DB
+            TenantContextHolder.clear();
             Optional<GlobalTenant> tenantOpt = tenantRepository.findById(tenantId)
                     .or(() -> tenantRepository.findByTenantSlug(tenantId));
 
@@ -98,12 +103,18 @@ public class HikariPoolManager {
             }
         } catch (Exception e) {
             log.error("Failed during lazy pool recovery for tenant [{}]: {}", tenantId, e.getMessage());
+        } finally {
+            if (prevContext != null) {
+                TenantContextHolder.set(prevContext);
+            } else {
+                TenantContextHolder.clear();
+            }
         }
 
         return null;
     }
 
-    public synchronized HikariDataSource getOrCreateTenantPool(
+public synchronized HikariDataSource getOrCreateTenantPool(
             String tenantId,
             String jdbcUrl,
             String username,
