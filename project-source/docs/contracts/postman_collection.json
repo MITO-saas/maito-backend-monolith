@@ -3,7 +3,7 @@
     "name": "Maito Multi-Tenant Platform Core API",
     "description": "Enterprise Control Plane, Dynamic Tenant Routing, Connection Telemetry, and Decommissioning",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "3.0.0-phase3-security"
+    "version": "4.0.0-phase4-catalog"
   },
   "item": [
     {
@@ -947,6 +947,294 @@
                 "v1",
                 "account",
                 "addresses"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog & Inventory Engine",
+      "item": [
+        {
+          "name": "Storefront - Get Store Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/store/settings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "store",
+                "settings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Storefront - Get Category Tree",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Storefront - Search Products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/products?currency=INR",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "currency",
+                  "value": "INR"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Storefront - Get Product By Slug (INR)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/products/artisanal-roasted-peri-peri-jumbo-makhana?currency=INR",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "products",
+                "artisanal-roasted-peri-peri-jumbo-makhana"
+              ],
+              "query": [
+                {
+                  "key": "currency",
+                  "value": "INR"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Storefront - Get Product By Slug (USD)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/catalog/products/artisanal-roasted-peri-peri-jumbo-makhana?currency=USD",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "products",
+                "artisanal-roasted-peri-peri-jumbo-makhana"
+              ],
+              "query": [
+                {
+                  "key": "currency",
+                  "value": "USD"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin - Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenant_admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"smoky-bbq-makhana\",\n  \"name\": \"Smoky BBQ Makhana\",\n  \"brand\": \"Mito Crunch\",\n  \"shortDescription\": \"Sweet & smoky flavored foxnuts\",\n  \"description\": \"Handpicked jumbo roasted foxnuts tossed in smoky BBQ spice blend.\",\n  \"hsnCode\": \"19041090\",\n  \"taxRatePercent\": 5,\n  \"attributes\": {\n    \"dietary\": [\n      \"Gluten-Free\"\n    ],\n    \"process\": \"Slow Roasted\"\n  },\n  \"isPublished\": true,\n  \"variants\": [\n    {\n      \"sku\": \"MITO-MAK-BBQ-100G\",\n      \"barcode\": \"8901234567895\",\n      \"weightGrams\": 100,\n      \"variantAttributes\": {\n        \"flavor\": \"Smoky BBQ\",\n        \"packSize\": \"100g\"\n      },\n      \"pricingTiers\": {\n        \"INR\": {\n          \"mrp\": 199,\n          \"salePrice\": 149\n        },\n        \"USD\": {\n          \"mrp\": 4.99,\n          \"salePrice\": 3.99\n        }\n      },\n      \"mediaGallery\": [\n        \"/assets/brands/mito_crunch/products/makhana_peri_peri.webp\"\n      ],\n      \"isActive\": true,\n      \"initialStock\": 150,\n      \"warehouseCode\": \"DEFAULT_WH\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/catalog/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "catalog",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin - Adjust Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenant_admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"variantId\": \"f1000000-0000-0000-0000-000000000001\",\n  \"warehouseCode\": \"DEFAULT_WH\",\n  \"quantityDelta\": 25,\n  \"reason\": \"Batch replenishment\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/inventory/adjust",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "inventory",
+                "adjust"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin - Update Store Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenant_admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeName\": \"Mito Crunch - Artisanal Roasted Makhana\",\n  \"supportEmail\": \"support@mitocrunch.com\",\n  \"supportPhone\": \"+91 98765 43210\",\n  \"baseCurrency\": \"INR\",\n  \"supportedCurrencies\": [\n    \"INR\",\n    \"USD\"\n  ],\n  \"timezone\": \"Asia/Kolkata\",\n  \"commercialSettings\": {\n    \"freeShippingThreshold\": 499,\n    \"taxIncluded\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/store/settings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "store",
+                "settings"
               ]
             }
           }
