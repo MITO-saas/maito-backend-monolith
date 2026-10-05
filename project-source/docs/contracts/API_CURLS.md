@@ -567,3 +567,116 @@ curl -X POST "http://localhost:8080/api/v1/admin/promotions" \
     "isActive": true
   }'
 ```
+
+---
+
+## 10. Phase 6: Pluggable Carrier Logistics, Self-Delivery Engine & Real-Time Tracking
+
+### 10.1 Public Storefront Tracking Ingress (Anonymous & Authenticated)
+
+#### Track Package Timeline by Order Number
+```bash
+curl -X GET "http://localhost:8080/api/v1/fulfillment/track/MC-2026-XXXXX" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+#### Track Package Timeline by AWB / Tracking Number
+```bash
+curl -X GET "http://localhost:8080/api/v1/fulfillment/track/awb/SELF-SHP-12345" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+---
+
+### 10.2 Admin Logistics & Fulfillment Ingress (ROLE_TENANT_ADMIN)
+
+#### Admin: List Configured Logistics Carriers
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/fulfillment/carriers" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json"
+```
+
+#### Admin: Book Shipment with Self-Fleet (Generates Verification OTP)
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/fulfillment/shipments" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "ORDER_UUID",
+    "carrierType": "SELF_FLEET",
+    "assignedRiderName": "Ramesh Singh",
+    "assignedRiderPhone": "+91 98765 11223",
+    "totalWeightGrams": 400,
+    "volumetricWeightGrams": 400
+  }'
+```
+
+#### Admin: Book Shipment with 3PL Courier (Delhivery / Blue Dart)
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/fulfillment/shipments" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "ORDER_UUID",
+    "carrierType": "DELHIVERY",
+    "totalWeightGrams": 500,
+    "volumetricWeightGrams": 500
+  }'
+```
+
+#### Admin: Update Shipment Status (Dispatch / Out for Delivery)
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/fulfillment/shipments/SHIPMENT_UUID/status" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "newStatus": "OUT_FOR_DELIVERY",
+    "locationHub": "PATNA_CENTRAL_HUB",
+    "statusDescription": "Package out for delivery with associate"
+  }'
+```
+
+#### Admin: Mark Delivered with Delivery Verification OTP
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/fulfillment/shipments/SHIPMENT_UUID/status" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "newStatus": "DELIVERED",
+    "locationHub": "CUSTOMER_DOORSTEP",
+    "statusDescription": "Delivered successfully after physical OTP verification",
+    "deliveryOtp": "549123"
+  }'
+```
+
+#### Admin: Cancel Shipment
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/fulfillment/shipments/SHIPMENT_UUID/cancel" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json"
+```
+
+#### Admin: Configure Carrier Settings and Credentials
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/fulfillment/carriers/SELF_FLEET" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isEnabled": true,
+    "settings": {
+      "defaultHub": "PATNA_CENTRAL",
+      "otpRequired": true,
+      "maxRadiusKm": 30
+    }
+  }'
+```

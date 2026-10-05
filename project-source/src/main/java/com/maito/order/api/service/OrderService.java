@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface OrderService {
+    OrderResponse getOrderById(UUID orderId);
     OrderResponse createOrderFromCart(UUID cartId, UUID customerProfileId, CreateOrderCommand cmd);
     OrderResponse confirmPayment(UUID orderId, PaymentCallbackCommand cmd);
     OrderResponse updateOrderStatus(UUID orderId, String newStatus);

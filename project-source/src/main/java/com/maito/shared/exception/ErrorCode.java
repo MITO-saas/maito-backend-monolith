@@ -20,6 +20,8 @@ public enum ErrorCode {
     USER_ALREADY_EXISTS("AUTH_4090", "User with given email already exists", HttpStatus.CONFLICT),
     TOKEN_EXPIRED_OR_INVALID("AUTH_4012", "JWT token expired or invalid", HttpStatus.UNAUTHORIZED),
     ACCESS_DENIED("AUTH_4030", "Access denied: insufficient privileges", HttpStatus.FORBIDDEN),
+    CARRIER_NOT_SUPPORTED("FULFILLMENT_4001", "Carrier not supported or unconfigured", HttpStatus.BAD_REQUEST),
+    INVALID_DELIVERY_OTP("FULFILLMENT_4002", "Invalid delivery verification OTP", HttpStatus.BAD_REQUEST),
     INTERNAL_SERVER_ERROR("MAITO_5000", "An unexpected internal server error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;

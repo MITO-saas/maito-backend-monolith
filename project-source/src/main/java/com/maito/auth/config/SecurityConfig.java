@@ -90,6 +90,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/promotions/apply").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/checkout/payment-callback").permitAll()
 
+                // Public Storefront Fulfillment Tracking
+                .requestMatchers(HttpMethod.GET, "/api/v1/fulfillment/track/**").permitAll()
+
                 // Customer Profile Gated Ingress
                 .requestMatchers(HttpMethod.POST, "/api/v1/cart/merge").hasAnyRole("TENANT_CUSTOMER", "CUSTOMER", "TENANT_ADMIN", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/checkout/create-order").hasAnyRole("TENANT_CUSTOMER", "CUSTOMER", "TENANT_ADMIN", "ADMIN")

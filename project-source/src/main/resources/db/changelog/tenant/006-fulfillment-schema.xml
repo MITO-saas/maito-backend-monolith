@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Create carrier_configurations table -->
+    <changeSet id="001-create-carrier-configurations" author="maito-architect">
+        <comment>Pluggable carrier configurations and credentials per tenant</comment>
+        <createTable tableName="carrier_configurations">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="carrier_type" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_carrier_type"/>
+            </column>
+            <column name="display_name" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="credentials" type="JSONB" defaultValue="{}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="settings" type="JSONB" defaultValue="{}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- 002: Create shipments table -->
+    <changeSet id="002-create-shipments" author="maito-architect">
+        <comment>Shipment orders with multi-carrier tracking and delivery verification</comment>
+        <createTable tableName="shipments">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_shipments_order" references="orders(id)" deleteCascade="true"/>
+            </column>
+            <column name="shipment_number" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_shipment_number"/>
+            </column>
+            <column name="carrier_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tracking_number" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(32)" defaultValue="MANIFESTED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="assigned_rider_name" type="VARCHAR(128)"/>
+            <column name="assigned_rider_phone" type="VARCHAR(32)"/>
+            <column name="delivery_otp" type="VARCHAR(8)"/>
+            <column name="total_weight_grams" type="INT" defaultValueNumeric="500">
+                <constraints nullable="false"/>
+            </column>
+            <column name="volumetric_weight_grams" type="INT" defaultValueNumeric="500">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shipping_label_url" type="VARCHAR(512)"/>
+            <column name="dispatched_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="delivered_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="shipments" indexName="idx_shipments_order_id">
+            <column name="order_id"/>
+        </createIndex>
+        <createIndex tableName="shipments" indexName="idx_shipments_tracking_number">
+            <column name="tracking_number"/>
+        </createIndex>
+        <createIndex tableName="shipments" indexName="idx_shipments_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 003: Create shipment_checkpoints table -->
+    <changeSet id="003-create-shipment-checkpoints" author="maito-architect">
+        <comment>Granular shipment journey tracking checkpoints and timeline logs</comment>
+        <createTable tableName="shipment_checkpoints">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="shipment_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_checkpoints_shipment" references="shipments(id)" deleteCascade="true"/>
+            </column>
+            <column name="checkpoint_status" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="location_hub" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status_description" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_timestamp" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="shipment_checkpoints" indexName="idx_checkpoints_shipment_id">
+            <column name="shipment_id"/>
+        </createIndex>
+        <createIndex tableName="shipment_checkpoints" indexName="idx_checkpoints_timestamp">
+            <column name="event_timestamp"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 004: Seed default carrier configurations -->
+    <changeSet id="004-seed-carrier-configurations" author="maito-architect">
+        <comment>Seed standard carrier configurations for Mito Crunch</comment>
+        <insert tableName="carrier_configurations">
+            <column name="carrier_type" value="SELF_FLEET"/>
+            <column name="display_name" value="Mito Express Self-Delivery Fleet"/>
+            <column name="is_enabled" valueBoolean="true"/>
+            <column name="credentials" value='{"fleetKey": "mito-fleet-secret-key"}'/>
+            <column name="settings" value='{"defaultHub": "PATNA_CENTRAL", "otpRequired": true, "maxRadiusKm": 25}'/>
+        </insert>
+        <insert tableName="carrier_configurations">
+            <column name="carrier_type" value="DELHIVERY"/>
+            <column name="display_name" value="Delhivery Surface &amp; Express"/>
+            <column name="is_enabled" valueBoolean="true"/>
+            <column name="credentials" value='{"apiToken": "mock_delhivery_token_9988"}'/>
+            <column name="settings" value='{"client": "MITO_EXPRESS_SURFACE", "pickupLocation": "Patna-Warehouse-1"}'/>
+        </insert>
+        <insert tableName="carrier_configurations">
+            <column name="carrier_type" value="BLUEDART"/>
+            <column name="display_name" value="Blue Dart Apex Express"/>
+            <column name="is_enabled" valueBoolean="true"/>
+            <column name="credentials" value='{"licenseKey": "mock_bd_lic_7766", "loginId": "BD_MITO"}'/>
+            <column name="settings" value='{"customerCode": "BD_MITO_9988", "areaCode": "PAT"}'/>
+        </insert>
+        <insert tableName="carrier_configurations">
+            <column name="carrier_type" value="SHIPROCKET"/>
+            <column name="display_name" value="Shiprocket Automated Aggregator"/>
+            <column name="is_enabled" valueBoolean="true"/>
+            <column name="credentials" value='{"email": "logistics@mitocrunch.com", "password": "mock_password_sr"}'/>
+            <column name="settings" value='{"pickupLocation": "Warehouse-1"}'/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
