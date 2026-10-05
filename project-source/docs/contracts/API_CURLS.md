@@ -680,3 +680,91 @@ curl -X PUT "http://localhost:8080/api/v1/admin/fulfillment/carriers/SELF_FLEET"
     }
   }'
 ```
+
+---
+
+## 11. Commercial Analytics, Regulatory Audit & Notifications (Phase 7)
+
+### Admin: Get Executive Dashboard KPIs (GMV, AOV, Top SKUs, Stock Risks)
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/analytics/kpis?startDate=2026-09-01&endDate=2026-10-05" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json"
+```
+
+**Expected Response (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "grossMerchandiseValue": 250000.00,
+    "totalPaidOrders": 125,
+    "averageOrderValue": 2000.00,
+    "topSellingVariants": [
+      {
+        "variantId": "f1000000-0000-0000-0000-000000000001",
+        "sku": "MKH-PERI-100G",
+        "productName": "Roasted Makhana - Peri Peri 100g",
+        "unitsSold": 340,
+        "totalRevenue": 68000.00
+      }
+    ],
+    "stockRiskItems": [
+      {
+        "variantId": "f1000000-0000-0000-0000-000000000001",
+        "warehouseCode": "DEFAULT_WH",
+        "availableStock": 5,
+        "reorderThreshold": 10,
+        "isStockDepleted": false
+      }
+    ]
+  }
+}
+```
+
+### Admin: Get Daily Sales Revenue and Order Count Trend
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/analytics/sales-trend?startDate=2026-10-01&endDate=2026-10-05" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json"
+```
+
+### Admin: Query Compliance Audit Logs (with Filtering & Pagination)
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/audit/logs?actionType=INVENTORY_ADJUST&page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json"
+```
+
+**Expected Response (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "content": [
+      {
+        "id": "8b4d6e28-712f-47f8-8df2-c87c8b3bfc30",
+        "actorId": "d221f308-d020-482f-9c69-2122f21734de",
+        "actorEmail": "admin@mitocrunch.com",
+        "actorRole": "ROLE_TENANT_ADMIN",
+        "actionType": "INVENTORY_ADJUST",
+        "entityType": "INVENTORY",
+        "entityId": "17df119e-95b2-42e6-bcd8-5aea93b27d46",
+        "ipAddress": "192.168.1.100",
+        "detailsBefore": { "availableStock": 100 },
+        "detailsAfter": { "availableStock": 150 },
+        "createdAt": "2026-10-05T19:55:54.896Z"
+      }
+    ],
+    "page": {
+      "size": 20,
+      "number": 0,
+      "totalElements": 1,
+      "totalPages": 1
+    }
+  }
+}
+```
