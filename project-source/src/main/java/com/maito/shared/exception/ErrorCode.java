@@ -15,6 +15,11 @@ public enum ErrorCode {
     IDEMPOTENCY_CONFLICT("MAITO_4091", "Duplicate request execution detected", HttpStatus.CONFLICT),
     TENANT_SUSPENDED("TENANT_SUSPENDED", "Tenant account is currently suspended", HttpStatus.FORBIDDEN),
     PROVISIONING_FAILED("MAITO_5001", "Tenant provisioning execution failed", HttpStatus.INTERNAL_SERVER_ERROR),
+    AUTHENTICATION_FAILED("AUTH_4010", "Invalid email or password", HttpStatus.UNAUTHORIZED),
+    ACCOUNT_LOCKED("AUTH_4011", "Account is locked due to excessive failed login attempts", HttpStatus.FORBIDDEN),
+    USER_ALREADY_EXISTS("AUTH_4090", "User with given email already exists", HttpStatus.CONFLICT),
+    TOKEN_EXPIRED_OR_INVALID("AUTH_4012", "JWT token expired or invalid", HttpStatus.UNAUTHORIZED),
+    ACCESS_DENIED("AUTH_4030", "Access denied: insufficient privileges", HttpStatus.FORBIDDEN),
     INTERNAL_SERVER_ERROR("MAITO_5000", "An unexpected internal server error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
