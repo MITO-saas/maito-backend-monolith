@@ -80,6 +80,8 @@ public class SecurityConfig {
                 ).permitAll()
                 // Public Storefront Layouts
                 .requestMatchers(HttpMethod.GET, "/api/v1/cms/pages/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/store/settings").permitAll()
 
                 // Tenant Admin Ingress
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("TENANT_ADMIN", "ADMIN")
