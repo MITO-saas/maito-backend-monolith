@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Re-create tenant_user_profiles with Phase 3 RBAC schema -->
+    <changeSet id="001-create-tenant-user-profiles-phase3" author="maito-user-architect" dbms="postgresql">
+        <comment>Tenant user profiles with dynamic role assignments and JSONB permission matrix</comment>
+        <sql>
+            DROP TABLE IF EXISTS tenant_user_profiles CASCADE;
+
+            CREATE TABLE tenant_user_profiles (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                global_user_id UUID NOT NULL,
+                first_name VARCHAR(128) NOT NULL,
+                last_name VARCHAR(128) NOT NULL,
+                role VARCHAR(64) NOT NULL,
+                permission_matrix JSONB NOT NULL DEFAULT '[]'::jsonb,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                version BIGINT NOT NULL DEFAULT 0,
+                CONSTRAINT uq_tenant_user_profiles_global_user_id UNIQUE (global_user_id)
+            );
+
+            CREATE INDEX idx_tenant_profiles_perm_gin ON tenant_user_profiles USING gin (permission_matrix);
+        </sql>
+    </changeSet>
+
+    <!-- 002: Tenant User Addresses -->
+    <changeSet id="002-create-tenant-user-addresses" author="maito-user-architect" dbms="postgresql">
+        <comment>Tenant user customer shipping and billing addresses</comment>
+        <sql>
+            DROP TABLE IF EXISTS tenant_user_addresses CASCADE;
+
+            CREATE TABLE tenant_user_addresses (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                profile_id UUID NOT NULL REFERENCES tenant_user_profiles(id) ON DELETE CASCADE,
+                address_type VARCHAR(32) NOT NULL DEFAULT 'SHIPPING',
+                recipient_name VARCHAR(128) NOT NULL,
+                phone VARCHAR(32) NOT NULL,
+                address_line1 VARCHAR(255) NOT NULL,
+                address_line2 VARCHAR(255),
+                city VARCHAR(128) NOT NULL,
+                state VARCHAR(128) NOT NULL,
+                postal_code VARCHAR(32) NOT NULL,
+                country_code VARCHAR(8) NOT NULL DEFAULT 'IN',
+                is_default BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                version BIGINT NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX idx_tenant_addresses_profile_id ON tenant_user_addresses (profile_id);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
