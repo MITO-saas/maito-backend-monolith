@@ -305,4 +305,4 @@ curl -X POST "http://localhost:8080/api/v1/admin/promotions" \
 | `PromotionEvaluationTest` | Min Spend, Percentage Capping, Free Shipping & Expiry Logic | 1 | **PASS** |
 | `OrderCheckoutTransactionalIntegrationTest` | Concurrency-Safe Atomic Stock Reservation, Rollback & Payment Lifecycle | 2 | **PASS** |
 | `AdminOrderSecurityTest` | Security Ingress Barriers (Anonymous, Customer, Admin RBAC) | 1 | **PASS** |
-| **All Platform Modules (Phases 1-5)** | Full Multi-Tenant Monolith Test Suite | **72** | **PASS (0 failures, 0 errors, 0 skipped)** |
+| **All Platform Modules (Phases 1-5)** | Full Multi-Tenant Monolith Test Suite | **78** | **PASS (0 failures, 0 errors, 0 skipped)** |
