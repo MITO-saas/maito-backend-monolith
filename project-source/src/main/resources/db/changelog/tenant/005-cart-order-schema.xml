@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Carts Table -->
+    <changeSet id="001-create-carts" author="maito-cart-architect">
+        <comment>Shopping carts supporting anonymous guests and authenticated customer profiles</comment>
+        <createTable tableName="carts">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="guest_cart_id" type="VARCHAR(128)"/>
+            <column name="customer_profile_id" type="UUID">
+                <constraints foreignKeyName="fk_carts_customer_profile" references="tenant_user_profiles(id)" deleteCascade="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(8)" defaultValue="INR">
+                <constraints nullable="false"/>
+            </column>
+            <column name="applied_coupon_code" type="VARCHAR(64)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="carts" indexName="idx_carts_guest">
+            <column name="guest_cart_id"/>
+        </createIndex>
+        <createIndex tableName="carts" indexName="idx_carts_customer">
+            <column name="customer_profile_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 002: Cart Items Table -->
+    <changeSet id="002-create-cart-items" author="maito-cart-architect">
+        <comment>Shopping cart line items linked to SKU variants</comment>
+        <createTable tableName="cart_items">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="cart_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_cart_items_cart" references="carts(id)" deleteCascade="true"/>
+            </column>
+            <column name="variant_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_cart_items_variant" references="catalog_product_variants(id)" deleteCascade="true"/>
+            </column>
+            <column name="quantity" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="cart_items" columnNames="cart_id, variant_id" constraintName="uk_cart_items_cart_variant"/>
+        <sql>
+            ALTER TABLE cart_items ADD CONSTRAINT chk_cart_items_quantity CHECK (quantity > 0);
+        </sql>
+    </changeSet>
+
+    <!-- 003: Promotions / Coupons Table -->
+    <changeSet id="003-create-promotions" author="maito-promotion-architect">
+        <comment>Discount promotions and coupons evaluation engine</comment>
+        <createTable tableName="promotions">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_promotions_code"/>
+            </column>
+            <column name="description" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="discount_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="discount_value" type="NUMERIC(10,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="minimum_order_amount" type="NUMERIC(10,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_discount_cap" type="NUMERIC(10,2)"/>
+            <column name="usage_limit_total" type="INT"/>
+            <column name="usage_limit_per_customer" type="INT" defaultValueNumeric="1"/>
+            <column name="valid_from" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valid_to" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- 004: Orders Table -->
+    <changeSet id="004-create-orders" author="maito-order-architect">
+        <comment>Immutable customer orders and payment state machine</comment>
+        <createTable tableName="orders">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_number" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_orders_order_number"/>
+            </column>
+            <column name="customer_profile_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_orders_customer_profile" references="tenant_user_profiles(id)"/>
+            </column>
+            <column name="order_status" type="VARCHAR(32)" defaultValue="PENDING_PAYMENT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(8)" defaultValue="INR">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subtotal_amount" type="NUMERIC(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="discount_amount" type="NUMERIC(12,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_amount" type="NUMERIC(12,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shipping_amount" type="NUMERIC(12,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_amount" type="NUMERIC(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="coupon_code" type="VARCHAR(64)"/>
+            <column name="shipping_address_snapshot" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_reference" type="VARCHAR(128)"/>
+            <column name="payment_status" type="VARCHAR(32)" defaultValue="UNPAID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="orders" indexName="idx_orders_customer">
+            <column name="customer_profile_id"/>
+        </createIndex>
+        <createIndex tableName="orders" indexName="idx_orders_status">
+            <column name="order_status"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 005: Order Items Table -->
+    <changeSet id="005-create-order-items" author="maito-order-architect">
+        <comment>Snapshot immutable line items of placed orders</comment>
+        <createTable tableName="order_items">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_order_items_order" references="orders(id)" deleteCascade="true"/>
+            </column>
+            <column name="variant_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_order_items_variant" references="catalog_product_variants(id)"/>
+            </column>
+            <column name="product_name_snapshot" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sku_snapshot" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="NUMERIC(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_line_amount" type="NUMERIC(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="order_items" indexName="idx_order_items_order">
+            <column name="order_id"/>
+        </createIndex>
+        <sql>
+            ALTER TABLE order_items ADD CONSTRAINT chk_order_items_quantity CHECK (quantity > 0);
+        </sql>
+    </changeSet>
+
+    <!-- 006: Seed Default Mito Crunch Promotions -->
+    <changeSet id="006-seed-default-promotions" author="maito-promotion-architect" dbms="postgresql">
+        <comment>Seed CRUNCHFREE and CRUNCH20 coupons</comment>
+        <sql>
+            INSERT INTO promotions (id, code, description, discount_type, discount_value, minimum_order_amount, max_discount_cap, valid_from, valid_to, is_active)
+            VALUES (
+                'e1000000-0000-0000-0000-000000000001',
+                'CRUNCHFREE',
+                'Free Delivery on orders above ₹499',
+                'FREE_SHIPPING',
+                0.00,
+                499.00,
+                NULL,
+                '2026-01-01 00:00:00+00',
+                '2030-12-31 23:59:59+00',
+                true
+            ) ON CONFLICT (code) DO NOTHING;
+
+            INSERT INTO promotions (id, code, description, discount_type, discount_value, minimum_order_amount, max_discount_cap, valid_from, valid_to, is_active)
+            VALUES (
+                'e1000000-0000-0000-0000-000000000002',
+                'CRUNCH20',
+                '20% off up to ₹200 on festive orders',
+                'PERCENTAGE',
+                20.00,
+                500.00,
+                200.00,
+                '2026-01-01 00:00:00+00',
+                '2030-12-31 23:59:59+00',
+                true
+            ) ON CONFLICT (code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

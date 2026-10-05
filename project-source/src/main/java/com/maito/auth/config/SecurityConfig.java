@@ -82,6 +82,17 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/cms/pages/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/store/settings").permitAll()
+                // Public Storefront Cart & Promotions & Payment Webhook
+                .requestMatchers(HttpMethod.GET, "/api/v1/cart").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/cart/items").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/v1/cart/items/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/cart/items/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/promotions/apply").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/checkout/payment-callback").permitAll()
+
+                // Customer Profile Gated Ingress
+                .requestMatchers(HttpMethod.POST, "/api/v1/cart/merge").hasAnyRole("TENANT_CUSTOMER", "CUSTOMER", "TENANT_ADMIN", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/v1/checkout/create-order").hasAnyRole("TENANT_CUSTOMER", "CUSTOMER", "TENANT_ADMIN", "ADMIN")
 
                 // Tenant Admin Ingress
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("TENANT_ADMIN", "ADMIN")

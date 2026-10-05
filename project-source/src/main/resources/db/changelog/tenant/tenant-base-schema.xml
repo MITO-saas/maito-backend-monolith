@@ -102,5 +102,6 @@
     <include file="002-cms-schema.xml" relativeToChangelogFile="true"/>
     <include file="003-tenant-user-rbac-schema.xml" relativeToChangelogFile="true"/>
     <include file="004-catalog-inventory-schema.xml" relativeToChangelogFile="true"/>
+    <include file="005-cart-order-schema.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
