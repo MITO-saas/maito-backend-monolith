@@ -105,5 +105,6 @@
     <include file="005-cart-order-schema.xml" relativeToChangelogFile="true"/>
 
     <include file="006-fulfillment-schema.xml" relativeToChangelogFile="true"/>
+    <include file="007-analytics-audit-schema.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
