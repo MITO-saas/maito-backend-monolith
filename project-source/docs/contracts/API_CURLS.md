@@ -277,3 +277,121 @@ curl -X GET "http://localhost:8080/api/v1/account/addresses" \
   -H "X-Tenant-ID: mito_crunch" \
   -H "Authorization: Bearer <CUSTOMER_ACCESS_TOKEN>"
 ```
+
+---
+
+## 8. Phase 4: Store Configurations, Catalog Hierarchy & Real-Time Concurrency-Safe Inventory Engine
+
+### 8.1 Storefront Public Ingress (Anonymous / Customer Traffic)
+
+#### Fetch Store Settings
+```bash
+curl -X GET "http://localhost:8080/api/v1/store/settings" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+#### Fetch Categories Tree
+```bash
+curl -X GET "http://localhost:8080/api/v1/catalog/categories" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+#### Search Catalog Products (with Dietary & Currency Filtering)
+```bash
+curl -X GET "http://localhost:8080/api/v1/catalog/products?currency=INR&categorySlug=roasted-makhana&dietary=Gluten-Free" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+#### Fetch Product Details by Slug (INR Pricing)
+```bash
+curl -X GET "http://localhost:8080/api/v1/catalog/products/artisanal-roasted-peri-peri-jumbo-makhana?currency=INR" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+#### Fetch Product Details by Slug (USD Pricing)
+```bash
+curl -X GET "http://localhost:8080/api/v1/catalog/products/artisanal-roasted-peri-peri-jumbo-makhana?currency=USD" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+### 8.2 Admin Management Ingress (Strictly Gated: ROLE_TENANT_ADMIN)
+
+#### Admin: Create New Product with Variants & Pricing Tiers
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/catalog/products" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "slug": "smoky-barbeque-crunch-makhana",
+    "name": "Smoky Barbeque Crunch Makhana",
+    "brand": "Mito Crunch",
+    "shortDescription": "Sweet and smoky Texas barbeque spiced roasted makhana",
+    "description": "Slow-roasted jumbo foxnuts glazed with artisanal barbeque rub.",
+    "hsnCode": "19041090",
+    "taxRatePercent": 5.00,
+    "attributes": {
+      "dietary": ["Gluten-Free", "Vegetarian"],
+      "process": "Slow Roasted"
+    },
+    "isPublished": true,
+    "variants": [
+      {
+        "sku": "MITO-MAK-BBQ-100G",
+        "barcode": "8901234567895",
+        "weightGrams": 100,
+        "variantAttributes": {
+          "flavor": "Smoky Barbeque",
+          "packSize": "100g"
+        },
+        "pricingTiers": {
+          "INR": {"mrp": 199.00, "salePrice": 149.00},
+          "USD": {"mrp": 4.99, "salePrice": 3.99}
+        },
+        "mediaGallery": ["/assets/brands/mito_crunch/products/makhana_peri_peri.webp"],
+        "isActive": true,
+        "initialStock": 200,
+        "warehouseCode": "DEFAULT_WH"
+      }
+    ]
+  }'
+```
+
+#### Admin: Adjust Stock Levels
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/inventory/adjust" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "variantId": "f1000000-0000-0000-0000-000000000001",
+    "warehouseCode": "DEFAULT_WH",
+    "quantityDelta": 50,
+    "reason": "Restocked from batch M-2026-10"
+  }'
+```
+
+#### Admin: Update Store Settings
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/store/settings" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "storeName": "Mito Crunch - Artisanal Roasted Makhana Superstore",
+    "supportEmail": "care@mitocrunch.com",
+    "supportPhone": "+91 98765 43210",
+    "baseCurrency": "INR",
+    "supportedCurrencies": ["INR", "USD", "EUR"],
+    "timezone": "Asia/Kolkata",
+    "commercialSettings": {
+      "freeShippingThreshold": 399,
+      "taxIncluded": true
+    }
+  }'
+```

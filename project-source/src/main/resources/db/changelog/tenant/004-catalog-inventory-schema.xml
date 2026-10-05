@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Store Settings Table -->
+    <changeSet id="001-create-store-settings" author="maito-store-architect">
+        <comment>Tenant-isolated store configuration, currencies, timezone, and commercial settings</comment>
+        <createTable tableName="store_settings">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="store_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="support_email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="support_phone" type="VARCHAR(32)"/>
+            <column name="base_currency" type="VARCHAR(8)" defaultValue="INR">
+                <constraints nullable="false"/>
+            </column>
+            <column name="supported_currencies" type="JSONB" defaultValueComputed="'[\"INR\", \"USD\"]'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="timezone" type="VARCHAR(64)" defaultValue="Asia/Kolkata">
+                <constraints nullable="false"/>
+            </column>
+            <column name="commercial_settings" type="JSONB" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- 002: Catalog Categories Table -->
+    <changeSet id="002-create-catalog-categories" author="maito-catalog-architect">
+        <comment>Hierarchical catalog categories with materialized path</comment>
+        <createTable tableName="catalog_categories">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="slug" type="VARCHAR(128)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_catalog_categories_slug"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="parent_id" type="UUID">
+                <constraints foreignKeyName="fk_catalog_categories_parent" references="catalog_categories(id)" deleteCascade="false"/>
+            </column>
+            <column name="materialized_path" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_order" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="catalog_categories" indexName="idx_catalog_categories_path">
+            <column name="materialized_path"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 003: Catalog Products Table -->
+    <changeSet id="003-create-catalog-products" author="maito-catalog-architect">
+        <comment>Catalog master products with tax rate, HSN, and JSONB attributes</comment>
+        <createTable tableName="catalog_products">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="slug" type="VARCHAR(128)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_catalog_products_slug"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="brand" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="short_description" type="VARCHAR(512)"/>
+            <column name="description" type="TEXT"/>
+            <column name="category_id" type="UUID">
+                <constraints foreignKeyName="fk_catalog_products_category" references="catalog_categories(id)"/>
+            </column>
+            <column name="hsn_code" type="VARCHAR(32)" defaultValue="19041090">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_rate_percent" type="NUMERIC(5,2)" defaultValueNumeric="5.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attributes" type="JSONB" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_published" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="catalog_products" indexName="idx_catalog_products_category">
+            <column name="category_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 004: GIN Index on catalog_products attributes -->
+    <changeSet id="004-create-catalog-products-gin-index" author="maito-catalog-architect" dbms="postgresql">
+        <comment>GIN index on product JSONB attributes for dietary/certification queries</comment>
+        <sql>
+            CREATE INDEX idx_catalog_products_attr_gin ON catalog_products USING gin (attributes);
+        </sql>
+    </changeSet>
+
+    <!-- 005: Catalog Product Variants Table -->
+    <changeSet id="005-create-catalog-product-variants" author="maito-catalog-architect">
+        <comment>Catalog SKU variants with weights, attributes, pricing tiers, and media gallery</comment>
+        <createTable tableName="catalog_product_variants">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="product_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_catalog_variants_product" references="catalog_products(id)" deleteCascade="true"/>
+            </column>
+            <column name="sku" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_catalog_variants_sku"/>
+            </column>
+            <column name="barcode" type="VARCHAR(64)"/>
+            <column name="weight_grams" type="INT" defaultValueNumeric="100">
+                <constraints nullable="false"/>
+            </column>
+            <column name="variant_attributes" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pricing_tiers" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="media_gallery" type="JSONB" defaultValueComputed="'[]'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="catalog_product_variants" indexName="idx_catalog_variants_product">
+            <column name="product_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 006: Inventory Levels Table -->
+    <changeSet id="006-create-inventory-levels" author="maito-inventory-architect">
+        <comment>Real-time concurrency-safe multi-warehouse inventory stock levels</comment>
+        <createTable tableName="inventory_levels">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="variant_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_inventory_levels_variant" references="catalog_product_variants(id)" deleteCascade="true"/>
+            </column>
+            <column name="warehouse_code" type="VARCHAR(64)" defaultValue="DEFAULT_WH">
+                <constraints nullable="false"/>
+            </column>
+            <column name="available_stock" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reserved_stock" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reorder_threshold" type="INT" defaultValueNumeric="10">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="inventory_levels" columnNames="variant_id, warehouse_code" constraintName="uk_inventory_variant_warehouse"/>
+        <sql>
+            ALTER TABLE inventory_levels ADD CONSTRAINT chk_inventory_available_stock CHECK (available_stock >= 0);
+            ALTER TABLE inventory_levels ADD CONSTRAINT chk_inventory_reserved_stock CHECK (reserved_stock >= 0);
+        </sql>
+    </changeSet>
+
+    <!-- 007: Seed Default Mito Crunch Catalog and Inventory -->
+    <changeSet id="007-seed-mito-crunch-catalog-inventory" author="maito-catalog-architect" dbms="postgresql">
+        <comment>Seed default store settings, roasted makhana category, 3 products, variants and inventory</comment>
+        <sql>
+            -- 1. Store Settings
+            INSERT INTO store_settings (id, store_name, support_email, support_phone, base_currency, supported_currencies, timezone, commercial_settings)
+            VALUES (
+                'd0000000-0000-0000-0000-000000000001',
+                'Mito Crunch - Artisanal Roasted Makhana',
+                'support@mitocrunch.com',
+                '+91 98765 43210',
+                'INR',
+                '["INR", "USD"]'::jsonb,
+                'Asia/Kolkata',
+                '{"freeShippingThreshold": 499, "taxIncluded": true}'::jsonb
+            ) ON CONFLICT (id) DO NOTHING;
+
+            -- 2. Category: Roasted Makhana
+            INSERT INTO catalog_categories (id, slug, name, description, parent_id, materialized_path, display_order, is_active)
+            VALUES (
+                'e0000000-0000-0000-0000-000000000001',
+                'roasted-makhana',
+                'Roasted Makhana',
+                'Premium water-lily seeds roasted in olive oil with natural artisanal spices',
+                NULL,
+                '/snacks/roasted-makhana',
+                1,
+                true
+            ) ON CONFLICT (slug) DO NOTHING;
+
+            -- 3. Product 1: Artisanal Roasted Peri Peri Jumbo Makhana
+            INSERT INTO catalog_products (id, slug, name, brand, short_description, description, category_id, hsn_code, tax_rate_percent, attributes, is_published)
+            VALUES (
+                'f0000000-0000-0000-0000-000000000001',
+                'artisanal-roasted-peri-peri-jumbo-makhana',
+                'Artisanal Roasted Peri Peri Jumbo Makhana',
+                'Mito Crunch',
+                'Crispy slow-roasted foxnuts dusted with zesty African bird''s eye chili peri peri spice.',
+                'Crafted from hand-graded jumbo foxnuts cultivated in the pristine freshwater ponds of Mithila. Slowly slow-roasted to golden crispness in cold-pressed rice bran oil and coated with our secret peri-peri seasoning.',
+                'e0000000-0000-0000-0000-000000000001',
+                '19041090',
+                5.00,
+                '{"dietary": ["Gluten-Free", "Vegan", "High-Protein"], "process": "Slow Roasted", "roastingProcess": "Hot Air Roasted", "shelfLifeDays": 180}'::jsonb,
+                true
+            ) ON CONFLICT (slug) DO NOTHING;
+
+            -- Product 1 Variants
+            INSERT INTO catalog_product_variants (id, product_id, sku, barcode, weight_grams, variant_attributes, pricing_tiers, media_gallery, is_active)
+            VALUES (
+                'f1000000-0000-0000-0000-000000000001',
+                'f0000000-0000-0000-0000-000000000001',
+                'MITO-MAK-PERI-100G',
+                '8901234567890',
+                100,
+                '{"flavor": "Peri Peri", "packSize": "100g"}'::jsonb,
+                '{"INR": {"mrp": 199.00, "salePrice": 149.00}, "USD": {"mrp": 4.99, "salePrice": 3.99}}'::jsonb,
+                '["/assets/brands/mito_crunch/products/makhana_peri_peri.webp"]'::jsonb,
+                true
+            ) ON CONFLICT (sku) DO NOTHING;
+
+            INSERT INTO catalog_product_variants (id, product_id, sku, barcode, weight_grams, variant_attributes, pricing_tiers, media_gallery, is_active)
+            VALUES (
+                'f1000000-0000-0000-0000-000000000002',
+                'f0000000-0000-0000-0000-000000000001',
+                'MITO-MAK-PERI-250G',
+                '8901234567891',
+                250,
+                '{"flavor": "Peri Peri", "packSize": "250g"}'::jsonb,
+                '{"INR": {"mrp": 449.00, "salePrice": 349.00}, "USD": {"mrp": 9.99, "salePrice": 7.99}}'::jsonb,
+                '["/assets/brands/mito_crunch/products/makhana_peri_peri.webp"]'::jsonb,
+                true
+            ) ON CONFLICT (sku) DO NOTHING;
+
+            -- Product 1 Inventory Levels
+            INSERT INTO inventory_levels (id, variant_id, warehouse_code, available_stock, reserved_stock, reorder_threshold)
+            VALUES (
+                'f2000000-0000-0000-0000-000000000001',
+                'f1000000-0000-0000-0000-000000000001',
+                'DEFAULT_WH',
+                250,
+                0,
+                15
+            ) ON CONFLICT (variant_id, warehouse_code) DO NOTHING;
+
+            INSERT INTO inventory_levels (id, variant_id, warehouse_code, available_stock, reserved_stock, reorder_threshold)
+            VALUES (
+                'f2000000-0000-0000-0000-000000000002',
+                'f1000000-0000-0000-0000-000000000002',
+                'DEFAULT_WH',
+                100,
+                0,
+                10
+            ) ON CONFLICT (variant_id, warehouse_code) DO NOTHING;
+
+            -- 4. Product 2: Himalayan Pink Salt Organic Foxnuts
+            INSERT INTO catalog_products (id, slug, name, brand, short_description, description, category_id, hsn_code, tax_rate_percent, attributes, is_published)
+            VALUES (
+                'f0000000-0000-0000-0000-000000000002',
+                'himalayan-pink-salt-organic-foxnuts',
+                'Himalayan Pink Salt Organic Foxnuts',
+                'Mito Crunch',
+                'Subtly seasoned with mineral-rich Himalayan pink salt for an authentic crunch.',
+                'Pure simplicity at its best. Naturally puffed organic foxnuts lightly tossed in stone-ground Himalayan pink rock salt and extra virgin olive oil.',
+                'e0000000-0000-0000-0000-000000000001',
+                '19041090',
+                5.00,
+                '{"dietary": ["Gluten-Free", "Keto-Friendly", "Low-Sodium"], "process": "Light Roasted", "roastingProcess": "Hot Air Roasted", "shelfLifeDays": 180}'::jsonb,
+                true
+            ) ON CONFLICT (slug) DO NOTHING;
+
+            -- Product 2 Variant
+            INSERT INTO catalog_product_variants (id, product_id, sku, barcode, weight_grams, variant_attributes, pricing_tiers, media_gallery, is_active)
+            VALUES (
+                'f1000000-0000-0000-0000-000000000003',
+                'f0000000-0000-0000-0000-000000000002',
+                'MITO-MAK-SALT-100G',
+                '8901234567892',
+                100,
+                '{"flavor": "Himalayan Pink Salt", "packSize": "100g"}'::jsonb,
+                '{"INR": {"mrp": 189.00, "salePrice": 139.00}, "USD": {"mrp": 4.49, "salePrice": 3.49}}'::jsonb,
+                '["/assets/brands/mito_crunch/products/makhana_himalayan_salt.webp"]'::jsonb,
+                true
+            ) ON CONFLICT (sku) DO NOTHING;
+
+            -- Product 2 Inventory Level
+            INSERT INTO inventory_levels (id, variant_id, warehouse_code, available_stock, reserved_stock, reorder_threshold)
+            VALUES (
+                'f2000000-0000-0000-0000-000000000003',
+                'f1000000-0000-0000-0000-000000000003',
+                'DEFAULT_WH',
+                300,
+                0,
+                20
+            ) ON CONFLICT (variant_id, warehouse_code) DO NOTHING;
+
+            -- 5. Product 3: Fresh Pudina Mint Magic Makhana
+            INSERT INTO catalog_products (id, slug, name, brand, short_description, description, category_id, hsn_code, tax_rate_percent, attributes, is_published)
+            VALUES (
+                'f0000000-0000-0000-0000-000000000003',
+                'fresh-pudina-mint-magic-makhana',
+                'Fresh Pudina Mint Magic Makhana',
+                'Mito Crunch',
+                'Refreshing cool mint and tangy chatpata spices tossed over crunchy roasted foxnuts.',
+                'A refreshing explosion of cool garden mint leaves, amchur (dry mango), and rock salt, roasted to crispy perfection.',
+                'e0000000-0000-0000-0000-000000000001',
+                '19041090',
+                5.00,
+                '{"dietary": ["Gluten-Free", "Vegetarian", "Digestive"], "process": "Slow Roasted", "roastingProcess": "Hot Air Roasted", "shelfLifeDays": 180}'::jsonb,
+                true
+            ) ON CONFLICT (slug) DO NOTHING;
+
+            -- Product 3 Variant
+            INSERT INTO catalog_product_variants (id, product_id, sku, barcode, weight_grams, variant_attributes, pricing_tiers, media_gallery, is_active)
+            VALUES (
+                'f1000000-0000-0000-0000-000000000004',
+                'f0000000-0000-0000-0000-000000000003',
+                'MITO-MAK-MINT-100G',
+                '8901234567893',
+                100,
+                '{"flavor": "Mint Magic", "packSize": "100g"}'::jsonb,
+                '{"INR": {"mrp": 199.00, "salePrice": 149.00}, "USD": {"mrp": 4.99, "salePrice": 3.99}}'::jsonb,
+                '["/assets/brands/mito_crunch/products/makhana_mint_magic.webp"]'::jsonb,
+                true
+            ) ON CONFLICT (sku) DO NOTHING;
+
+            -- Product 3 Inventory Level
+            INSERT INTO inventory_levels (id, variant_id, warehouse_code, available_stock, reserved_stock, reorder_threshold)
+            VALUES (
+                'f2000000-0000-0000-0000-000000000004',
+                'f1000000-0000-0000-0000-000000000004',
+                'DEFAULT_WH',
+                150,
+                0,
+                15
+            ) ON CONFLICT (variant_id, warehouse_code) DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
