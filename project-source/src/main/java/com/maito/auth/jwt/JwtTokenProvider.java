@@ -52,6 +52,28 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    public String generateTokenWithCustomExpiry(
+            UUID globalUserId,
+            String tenantId,
+            String role,
+            List<String> permissions,
+            UUID profileId,
+            long ttlMs) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + ttlMs);
+
+        return Jwts.builder()
+                .subject(globalUserId.toString())
+                .claim("tenantId", tenantId)
+                .claim("role", role)
+                .claim("permissions", permissions != null ? permissions : List.of())
+                .claim("profileId", profileId != null ? profileId.toString() : null)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(key)
+                .compact();
+    }
+
     public String generateRefreshToken(UUID globalUserId, String tenantId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshTokenExpirationMs);
