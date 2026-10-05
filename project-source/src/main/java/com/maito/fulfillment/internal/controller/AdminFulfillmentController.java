@@ -42,6 +42,15 @@ public class AdminFulfillmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
 
+    @PostMapping("/shipments/{shipmentId}/dispatch")
+    @Operation(summary = "Dispatch shipment and synchronize parent order status to SHIPPED")
+    public ResponseEntity<ApiResponse<ShipmentResponse>> dispatchShipment(
+            @PathVariable UUID shipmentId
+    ) {
+        ShipmentResponse response = fulfillmentService.dispatchShipment(shipmentId);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
     @GetMapping("/shipments/{shipmentId}")
     @Operation(summary = "Get shipment details by ID")
     public ResponseEntity<ApiResponse<ShipmentResponse>> getShipment(

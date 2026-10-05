@@ -13,6 +13,7 @@ import java.util.UUID;
 
 public interface FulfillmentService {
     ShipmentResponse createShipment(CreateShipmentCommand cmd);
+    ShipmentResponse dispatchShipment(UUID shipmentId);
     TrackingTimelineResponse getTrackingByOrderNumber(String orderNumber);
     TrackingTimelineResponse getTrackingByTrackingNumber(String trackingNumber);
     ShipmentResponse getShipmentById(UUID shipmentId);

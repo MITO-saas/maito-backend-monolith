@@ -15,14 +15,14 @@ public class BlueDartCarrierAdapter implements CarrierAdapter {
 
     @Override
     public ShipmentBookingResult bookShipment(ShipmentBookingRequest request) {
-        String waybill = "BD-" + Math.abs(request.shipmentNumber().hashCode()) + "99";
+        String waybill = "BLD-" + Math.abs(request.shipmentNumber().hashCode()) + "99";
         String labelUrl = "https://api.bluedart.com/docs/waybill/" + waybill + ".pdf";
         return new ShipmentBookingResult(
                 waybill,
                 labelUrl,
                 null,
-                "BLUEDART_APEX_HUB",
-                "Electronic Air Waybill generated. Scheduled for pickup."
+                "BLUEDART_AVIATION_GATEWAY",
+                "Electronic Air Waybill generated. Aviation gateway checkpoint created."
         );
     }
 
@@ -31,7 +31,7 @@ public class BlueDartCarrierAdapter implements CarrierAdapter {
         return new TrackingDetailsResult(
                 trackingNumber,
                 "IN_TRANSIT",
-                "BLUEDART_APEX_HUB",
+                "BLUEDART_AVIATION_GATEWAY",
                 "Shipment processed at air express gateway",
                 Instant.now()
         );

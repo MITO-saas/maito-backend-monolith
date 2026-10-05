@@ -15,7 +15,7 @@ public class DelhiveryCarrierAdapter implements CarrierAdapter {
 
     @Override
     public ShipmentBookingResult bookShipment(ShipmentBookingRequest request) {
-        String awb = "DEL-" + Math.abs(request.shipmentNumber().hashCode()) + "-IN";
+        String awb = "DLV-" + Math.abs(request.shipmentNumber().hashCode()) + "-IN";
         String labelUrl = "https://track.delhivery.com/labels/" + awb + ".pdf";
         return new ShipmentBookingResult(
                 awb,

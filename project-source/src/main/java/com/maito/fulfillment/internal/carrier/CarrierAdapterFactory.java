@@ -21,9 +21,12 @@ public class CarrierAdapterFactory {
     }
 
     public CarrierAdapter getAdapter(CarrierType type) {
+        if (type == null) {
+            throw new BusinessException(ErrorCode.CARRIER_NOT_SUPPORTED, "Carrier type cannot be null");
+        }
         CarrierAdapter adapter = adapterMap.get(type);
         if (adapter == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "No logistics adapter registered for carrier type: " + type);
+            throw new BusinessException(ErrorCode.CARRIER_NOT_SUPPORTED, "No logistics adapter registered for carrier type: " + type);
         }
         return adapter;
     }
