@@ -72,21 +72,42 @@ class FulfillmentShipmentLifecycleIntegrationTest {
         TenantContextHolder.clear();
     }
 
-    private OrderResponse createAndPayOrder() {
+    private OrderResponse createUnpaidOrder() {
         TenantProfileDto customer = userService.createProfile(
                 UUID.randomUUID(), "Fulfillment", "Customer", "ROLE_TENANT_CUSTOMER", List.of()
         );
         CartResponse cart = cartService.getOrCreateCart(null, customer.id(), "INR");
         cartService.addItem(cart.id(), new AddCartItemCommand(periPeriVariantId, 2));
 
-        OrderResponse order = orderService.createOrderFromCart(cart.id(), customer.id(), new CreateOrderCommand(
+        return orderService.createOrderFromCart(cart.id(), customer.id(), new CreateOrderCommand(
                 Map.of("line1", "Boring Road", "city", "Patna", "state", "Bihar", "pincode", "800001"),
                 null
         ));
+    }
 
-        // Confirm payment
+    private OrderResponse createAndPayOrder() {
+        OrderResponse unpaid = createUnpaidOrder();
         PaymentCallbackCommand payCmd = new PaymentCallbackCommand("TXN-" + UUID.randomUUID().toString().substring(0, 8), "PAID", "mock-sig");
-        return orderService.confirmPayment(order.id(), payCmd);
+        return orderService.confirmPayment(unpaid.id(), payCmd);
+    }
+
+    @Test
+    @DisplayName("Assert creating a shipment fails fast if order is not in PAID status")
+    void shouldRequirePaidOrderForShipmentBooking() {
+        OrderResponse unpaidOrder = createUnpaidOrder();
+
+        CreateShipmentCommand bookCmd = new CreateShipmentCommand(
+                unpaidOrder.id(),
+                CarrierType.SELF_FLEET,
+                "Ramesh Singh",
+                "+91 98765 11223",
+                400,
+                400
+        );
+
+        assertThatThrownBy(() -> fulfillmentService.createShipment(bookCmd))
+                .isInstanceOf(BusinessException.class)
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.BUSINESS_RULE_VIOLATION);
     }
 
     @Test
@@ -101,27 +122,41 @@ class FulfillmentShipmentLifecycleIntegrationTest {
                 "Ramesh Singh",
                 "+91 98765 11223",
                 400,
-                400
+                400,
+                20.0,
+                15.0,
+                10.0
         );
 
         ShipmentResponse shipment = fulfillmentService.createShipment(bookCmd);
         assertThat(shipment).isNotNull();
         assertThat(shipment.status()).isEqualTo(ShipmentStatus.MANIFESTED);
-        assertThat(shipment.trackingNumber()).startsWith("SELF-");
-        assertThat(shipment.deliveryOtp()).isNotNull().hasSize(6);
+        assertThat(shipment.trackingNumber()).startsWith("SELF-MITOCRUNCH-");
+        assertThat(shipment.deliveryOtp()).isNotNull().hasSize(4);
         assertThat(shipment.assignedRiderName()).isEqualTo("Ramesh Singh");
 
         // Order transitioned to PROCESSING
         OrderResponse processingOrder = orderService.getOrderById(paidOrder.id());
         assertThat(processingOrder.orderStatus()).isEqualTo("PROCESSING");
 
-        // 2. Track timeline by order number
+        // 2. Track timeline by order number - verify public tracking stepper & carrier display name
         TrackingTimelineResponse timeline = fulfillmentService.getTrackingByOrderNumber(paidOrder.orderNumber());
         assertThat(timeline.shipmentNumber()).isEqualTo(shipment.shipmentNumber());
+        assertThat(timeline.carrierDisplayName()).isEqualTo("Mito Express Self-Delivery Fleet");
+        assertThat(timeline.currentProgressStep()).isEqualTo("PROCESSING");
+        assertThat(timeline.progressStepperStages()).containsExactly("ORDER_PLACED", "PROCESSING", "DISPATCHED", "OUT_FOR_DELIVERY", "DELIVERED");
         assertThat(timeline.checkpoints()).hasSize(1);
         assertThat(timeline.checkpoints().get(0).checkpointStatus()).isEqualTo("MANIFESTED");
 
-        // 3. Update status to OUT_FOR_DELIVERY
+        // 3. Dispatch shipment -> triggers DISPATCHED state and synchronizes parent order to SHIPPED
+        ShipmentResponse dispatchedShipment = fulfillmentService.dispatchShipment(shipment.id());
+        assertThat(dispatchedShipment.status()).isEqualTo(ShipmentStatus.DISPATCHED);
+        assertThat(dispatchedShipment.dispatchedAt()).isNotNull();
+
+        OrderResponse shippedOrder = orderService.getOrderById(paidOrder.id());
+        assertThat(shippedOrder.orderStatus()).isEqualTo("SHIPPED");
+
+        // 4. Update status to OUT_FOR_DELIVERY
         UpdateShipmentStatusCommand outCmd = new UpdateShipmentStatusCommand(
                 ShipmentStatus.OUT_FOR_DELIVERY,
                 "PATNA_CENTRAL_HUB",
@@ -131,18 +166,18 @@ class FulfillmentShipmentLifecycleIntegrationTest {
         ShipmentResponse outShipment = fulfillmentService.updateShipmentStatus(shipment.id(), outCmd);
         assertThat(outShipment.status()).isEqualTo(ShipmentStatus.OUT_FOR_DELIVERY);
 
-        // 4. Attempt to mark DELIVERED with invalid OTP -> should fail fast
+        // 5. Attempt to mark DELIVERED with invalid OTP -> should fail fast with INVALID_DELIVERY_OTP
         UpdateShipmentStatusCommand wrongOtpCmd = new UpdateShipmentStatusCommand(
                 ShipmentStatus.DELIVERED,
                 "CUSTOMER_DOORSTEP",
                 "Delivered",
-                "000000" // Wrong OTP
+                "9999" // Wrong OTP
         );
         assertThatThrownBy(() -> fulfillmentService.updateShipmentStatus(shipment.id(), wrongOtpCmd))
                 .isInstanceOf(BusinessException.class)
-                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.VALIDATION_FAILED);
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.INVALID_DELIVERY_OTP);
 
-        // 5. Mark DELIVERED with correct OTP -> should succeed
+        // 6. Mark DELIVERED with correct OTP -> should succeed and synchronize order to DELIVERED
         UpdateShipmentStatusCommand correctOtpCmd = new UpdateShipmentStatusCommand(
                 ShipmentStatus.DELIVERED,
                 "CUSTOMER_DOORSTEP",
@@ -157,10 +192,11 @@ class FulfillmentShipmentLifecycleIntegrationTest {
         OrderResponse finalOrder = orderService.getOrderById(paidOrder.id());
         assertThat(finalOrder.orderStatus()).isEqualTo("DELIVERED");
 
-        // 6. Verify full tracking timeline contains all checkpoints
+        // 7. Verify full tracking timeline contains all checkpoints and current step is DELIVERED
         TrackingTimelineResponse finalTimeline = fulfillmentService.getTrackingByTrackingNumber(shipment.trackingNumber());
         assertThat(finalTimeline.currentStatus()).isEqualTo(ShipmentStatus.DELIVERED);
-        assertThat(finalTimeline.checkpoints()).hasSize(3); // MANIFESTED, OUT_FOR_DELIVERY, DELIVERED
+        assertThat(finalTimeline.currentProgressStep()).isEqualTo("DELIVERED");
+        assertThat(finalTimeline.checkpoints()).hasSize(4); // MANIFESTED, DISPATCHED, OUT_FOR_DELIVERY, DELIVERED
     }
 
     @Test
@@ -179,11 +215,19 @@ class FulfillmentShipmentLifecycleIntegrationTest {
 
         ShipmentResponse shipment = fulfillmentService.createShipment(bookCmd);
         assertThat(shipment.carrierType()).isEqualTo(CarrierType.DELHIVERY);
-        assertThat(shipment.trackingNumber()).startsWith("DEL-");
+        assertThat(shipment.trackingNumber()).startsWith("DLV-");
         assertThat(shipment.shippingLabelUrl()).contains("delhivery.com");
 
         // Cancel shipment
         ShipmentResponse cancelled = fulfillmentService.cancelShipment(shipment.id());
         assertThat(cancelled.status()).isEqualTo(ShipmentStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("Assert tracking unknown order number returns RESOURCE_NOT_FOUND (404)")
+    void shouldReturnNotFoundForUnknownOrderTracking() {
+        assertThatThrownBy(() -> fulfillmentService.getTrackingByOrderNumber("UNKNOWN-ORDER-99999"))
+                .isInstanceOf(BusinessException.class)
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.RESOURCE_NOT_FOUND);
     }
 }
