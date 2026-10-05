@@ -395,3 +395,175 @@ curl -X PUT "http://localhost:8080/api/v1/admin/store/settings" \
     }
   }'
 ```
+
+---
+
+## 9. Phase 5: Cart State Engine, Discount/Promotions Engine & Concurrency-Safe Order Lifecycle
+
+### 9.1 Storefront Cart Ingress (Anonymous / Guest or Authenticated)
+
+#### Retrieve / Initialize Cart (Guest or Authenticated)
+```bash
+curl -X GET "http://localhost:8080/api/v1/cart" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "X-Cart-ID: guest-cart-12345" \
+  -H "Accept: application/json"
+```
+
+#### Add Product Variant (SKU) to Cart
+```bash
+curl -X POST "http://localhost:8080/api/v1/cart/items" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "X-Cart-ID: guest-cart-12345" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "variantId": "f1000000-0000-0000-0000-000000000001",
+    "quantity": 2
+  }'
+```
+
+#### Update Cart Item Quantity
+```bash
+curl -X PUT "http://localhost:8080/api/v1/cart/items/ITEM_UUID" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "X-Cart-ID: guest-cart-12345" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quantity": 4
+  }'
+```
+
+#### Remove Cart Item
+```bash
+curl -X DELETE "http://localhost:8080/api/v1/cart/items/ITEM_UUID" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "X-Cart-ID: guest-cart-12345" \
+  -H "Accept: application/json"
+```
+
+#### Merge Anonymous Guest Cart into Customer Account (ROLE_TENANT_CUSTOMER)
+```bash
+curl -X POST "http://localhost:8080/api/v1/cart/merge" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "guestCartId": "guest-cart-12345"
+  }'
+```
+
+---
+
+### 9.2 Storefront Promotions Ingress
+
+#### Evaluate and Apply Coupon Code
+```bash
+curl -X POST "http://localhost:8080/api/v1/promotions/apply" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "CRUNCH20",
+    "subtotal": 600.00
+  }'
+```
+
+---
+
+### 9.3 Storefront Checkout & Order Lifecycle Ingress (ROLE_TENANT_CUSTOMER)
+
+#### Create Order from Active Cart (Atomic Stock Reservation)
+```bash
+curl -X POST "http://localhost:8080/api/v1/checkout/create-order" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shippingAddress": {
+      "fullName": "Rahul Sharma",
+      "addressLine1": "Flat 402, Lotus Towers, 100 Feet Road",
+      "city": "Bengaluru",
+      "state": "Karnataka",
+      "postalCode": "560038",
+      "country": "IN",
+      "phone": "+91 98765 43210"
+    },
+    "couponCode": "CRUNCH20"
+  }'
+```
+
+#### Payment Gateway Callback / Webhook Simulation
+```bash
+curl -X POST "http://localhost:8080/api/v1/checkout/payment-callback" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "ORDER_UUID",
+    "paymentReference": "pay_rzp_mock_12345678",
+    "status": "SUCCESS"
+  }'
+```
+
+#### Customer Order History
+```bash
+curl -X GET "http://localhost:8080/api/v1/account/orders?page=0&size=10" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN" \
+  -H "Accept: application/json"
+```
+
+#### Customer Order Details
+```bash
+curl -X GET "http://localhost:8080/api/v1/account/orders/MC-2026-XXXXX" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $CUSTOMER_TOKEN" \
+  -H "Accept: application/json"
+```
+
+---
+
+### 9.4 Admin Management Ingress (ROLE_TENANT_ADMIN)
+
+#### Admin: List Orders with Status Filter
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/orders?status=PAID&page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json"
+```
+
+#### Admin: Update Order Status
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/orders/ORDER_UUID/status" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "SHIPPED"
+  }'
+```
+
+#### Admin: List Promotions
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/promotions" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Accept: application/json"
+```
+
+#### Admin: Create Promotion
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/promotions" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "FESTIVE30",
+    "description": "Flat ₹30 off on festive snacking",
+    "discountType": "FLAT",
+    "discountValue": 30.00,
+    "minimumOrderAmount": 250.00,
+    "validFrom": "2026-10-01T00:00:00Z",
+    "validTo": "2026-12-31T23:59:59Z",
+    "isActive": true
+  }'
+```
