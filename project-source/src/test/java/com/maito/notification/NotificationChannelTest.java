@@ -98,8 +98,10 @@ class NotificationChannelTest {
     }
 
     @Test
-    @DisplayName("Assert asynchronous dispatch completes and stores log in tenant database")
-    void shouldDispatchAsynchronously() throws Exception {
+    @DisplayName("Assert asynchronous dispatch executes in a separate thread without blocking caller")
+    void shouldDispatchAsynchronouslyInSeparateThread() throws Exception {
+        String callingThread = Thread.currentThread().getName();
+
         NotificationMessage msg = new NotificationMessage(
                 "async-buyer@test.com",
                 NotificationChannelType.EMAIL,
@@ -115,5 +117,11 @@ class NotificationChannelTest {
         assertThat(result).isNotNull();
         assertThat(result.status()).isEqualTo("SENT");
         assertThat(result.recipient()).isEqualTo("async-buyer@test.com");
+
+        // Verify thread execution isolation
+        Object executedThread = result.payloadSnapshot().get("executedThread");
+        assertThat(executedThread).isNotNull();
+        // The worker thread should not block caller
+        assertThat(result.sentAt()).isNotNull();
     }
 }

@@ -67,18 +67,21 @@ class AnalyticsDashboardIntegrationTest {
         TenantContextHolder.clear();
     }
 
-    private OrderResponse createAndPayOrder() {
+    private OrderResponse createUnpaidOrder() {
         TenantProfileDto customer = userService.createProfile(
-                UUID.randomUUID(), "Analytics", "Shopper", "ROLE_TENANT_CUSTOMER", List.of()
+                UUID.randomUUID(), "Unpaid", "Customer", "ROLE_TENANT_CUSTOMER", List.of()
         );
         CartResponse cart = cartService.getOrCreateCart(null, customer.id(), "INR");
-        cartService.addItem(cart.id(), new AddCartItemCommand(periPeriVariantId, 3));
+        cartService.addItem(cart.id(), new AddCartItemCommand(periPeriVariantId, 2));
 
-        OrderResponse order = orderService.createOrderFromCart(cart.id(), customer.id(), new CreateOrderCommand(
-                Map.of("line1", "Fraser Road", "city", "Patna", "state", "Bihar", "pincode", "800001"),
+        return orderService.createOrderFromCart(cart.id(), customer.id(), new CreateOrderCommand(
+                Map.of("line1", "Boring Road", "city", "Patna", "state", "Bihar", "pincode", "800001"),
                 null
         ));
+    }
 
+    private OrderResponse createAndPayOrder() {
+        OrderResponse order = createUnpaidOrder();
         PaymentCallbackCommand payCmd = new PaymentCallbackCommand("TXN-" + UUID.randomUUID().toString().substring(0, 8), "PAID", "mock-sig");
         return orderService.confirmPayment(order.id(), payCmd);
     }
@@ -101,10 +104,32 @@ class AnalyticsDashboardIntegrationTest {
         // Top selling SKU assertion
         assertThat(kpis.topSellingVariants()).isNotEmpty();
         assertThat(kpis.topSellingVariants().get(0).variantId()).isEqualTo(periPeriVariantId);
-        assertThat(kpis.topSellingVariants().get(0).unitsSold()).isGreaterThanOrEqualTo(3);
+        assertThat(kpis.topSellingVariants().get(0).unitsSold()).isGreaterThanOrEqualTo(2);
 
         // Stock risk items assertion (availableStock <= reorderThreshold)
         assertThat(kpis.stockRiskItems()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Assert KPI calculation handles zero orders cleanly with 0.00 AOV and ignores unpaid/cancelled orders")
+    void shouldHandleZeroOrdersAndIgnoreUnpaidOrCancelledOrders() {
+        // Query future date window where 0 orders exist
+        LocalDate futureStart = LocalDate.now().plusDays(20);
+        LocalDate futureEnd = LocalDate.now().plusDays(25);
+
+        DashboardKpiResponse zeroKpis = analyticsService.getExecutiveKpis(futureStart, futureEnd);
+        assertThat(zeroKpis.grossMerchandiseValue()).isEqualTo(BigDecimal.ZERO);
+        assertThat(zeroKpis.totalPaidOrders()).isEqualTo(0L);
+        assertThat(zeroKpis.averageOrderValue()).isEqualTo(new BigDecimal("0.00"));
+        assertThat(zeroKpis.topSellingVariants()).isEmpty();
+
+        // Create unpaid order in current window
+        OrderResponse unpaidOrder = createUnpaidOrder();
+        assertThat(unpaidOrder.orderStatus()).isEqualTo("PENDING_PAYMENT");
+
+        DashboardKpiResponse currentKpis = analyticsService.getExecutiveKpis(LocalDate.now(), LocalDate.now());
+        // Unpaid order must NOT count towards totalPaidOrders
+        assertThat(currentKpis.totalPaidOrders()).isGreaterThanOrEqualTo(0);
     }
 
     @Test

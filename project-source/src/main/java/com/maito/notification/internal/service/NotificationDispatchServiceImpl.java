@@ -9,6 +9,8 @@ import com.maito.notification.internal.domain.NotificationLog;
 import com.maito.notification.internal.repository.NotificationLogRepository;
 import com.maito.shared.exception.BusinessException;
 import com.maito.shared.exception.ErrorCode;
+import com.maito.tenant.routing.TenantContext;
+import com.maito.tenant.routing.TenantContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -37,9 +39,18 @@ public class NotificationDispatchServiceImpl implements NotificationDispatchServ
 
     @Override
     @Async
-    @Transactional
     public CompletableFuture<NotificationLogDto> dispatchAsync(NotificationMessage message) {
-        return CompletableFuture.completedFuture(dispatchSync(message));
+        TenantContext currentContext = TenantContextHolder.get();
+        return CompletableFuture.supplyAsync(() -> {
+            if (currentContext != null) {
+                TenantContextHolder.set(currentContext);
+            }
+            try {
+                return dispatchSync(message);
+            } finally {
+                TenantContextHolder.clear();
+            }
+        });
     }
 
     @Override
@@ -60,6 +71,7 @@ public class NotificationDispatchServiceImpl implements NotificationDispatchServ
         Map<String, Object> payloadSnapshot = new HashMap<>();
         payloadSnapshot.put("subject", message.subject());
         payloadSnapshot.put("content", message.content());
+        payloadSnapshot.put("executedThread", Thread.currentThread().getName());
         if (message.metadata() != null) {
             payloadSnapshot.put("metadata", message.metadata());
         }
@@ -74,8 +86,8 @@ public class NotificationDispatchServiceImpl implements NotificationDispatchServ
                 .build();
 
         NotificationLog saved = notificationLogRepository.save(logEntry);
-        log.info("Notification log stored: id=[{}] channel=[{}] recipient=[{}] status=[{}]",
-                saved.getId(), saved.getChannel(), saved.getRecipient(), saved.getStatus());
+        log.info("Notification log stored: id=[{}] channel=[{}] recipient=[{}] status=[{}] thread=[{}]",
+                saved.getId(), saved.getChannel(), saved.getRecipient(), saved.getStatus(), Thread.currentThread().getName());
 
         return toDto(saved);
     }
