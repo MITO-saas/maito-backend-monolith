@@ -14,4 +14,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     List<Order> findByCustomerProfileIdOrderByCreatedAtDesc(UUID customerProfileId);
     List<Order> findByOrderStatusOrderByCreatedAtDesc(String orderStatus);
     List<Order> findAllByOrderByCreatedAtDesc();
+
+    @org.springframework.data.jpa.repository.Query("SELECT o FROM Order o WHERE o.orderStatus IN ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED') AND o.createdAt >= :start AND o.createdAt <= :end ORDER BY o.createdAt ASC")
+    List<Order> findPaidOrdersBetween(@org.springframework.data.repository.query.Param("start") java.time.Instant start, @org.springframework.data.repository.query.Param("end") java.time.Instant end);
 }

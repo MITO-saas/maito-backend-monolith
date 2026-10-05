@@ -18,6 +18,9 @@ public interface InventoryLevelRepository extends JpaRepository<InventoryLevel, 
 
     List<InventoryLevel> findByVariantId(UUID variantId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT i FROM InventoryLevel i WHERE i.availableStock <= i.reorderThreshold ORDER BY i.availableStock ASC")
+    List<InventoryLevel> findStockRiskItems();
+
     @Modifying
     @Query("UPDATE InventoryLevel i SET i.availableStock = i.availableStock - :qty, i.reservedStock = i.reservedStock + :qty " +
            "WHERE i.variantId = :variantId AND i.warehouseCode = :wh AND i.availableStock >= :qty")
