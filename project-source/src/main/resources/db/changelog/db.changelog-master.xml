@@ -7,5 +7,6 @@
 
     <include file="changes/01-init-schema.xml" relativeToChangelogFile="true"/>
     <include file="master/001-master-control-plane.xml" relativeToChangelogFile="true"/>
+    <include file="master/002-master-identity-schema.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
