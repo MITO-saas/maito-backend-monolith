@@ -187,3 +187,93 @@ curl -X PUT http://localhost:8080/api/v1/admin/cms/sections/44444444-4444-4444-4
     }
   }'
 ```
+---
+
+## 4. Multi-Tenant Authentication & Identity RBAC (Phase 3)
+
+### Register Customer Identity & Tenant Profile
+Creates global master identity in `db_global_master` and tenant-scoped profile in tenant database:
+```bash
+curl -X POST "http://localhost:8080/api/v1/auth/register" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -d '{
+    "email": "newcustomer@mitocrunch.com",
+    "password": "SecurePassword@2026",
+    "firstName": "Aarav",
+    "lastName": "Sharma",
+    "phone": "+919876543299"
+  }'
+```
+
+### Authenticate Admin (Mito Crunch)
+```bash
+curl -X POST "http://localhost:8080/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -d '{
+    "email": "admin@mitocrunch.com",
+    "password": "CrunchAdmin@2026"
+  }'
+```
+
+### Authenticate Customer (Mito Crunch)
+```bash
+curl -X POST "http://localhost:8080/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -d '{
+    "email": "customer@mitocrunch.com",
+    "password": "Customer@2026"
+  }'
+```
+
+### Refresh Access Token
+```bash
+curl -X POST "http://localhost:8080/api/v1/auth/refresh" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -d '{
+    "refreshToken": "<REFRESH_TOKEN>"
+  }'
+```
+
+### Get Current Security Context (`/me`)
+```bash
+curl -X GET "http://localhost:8080/api/v1/auth/me" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+### Customer Add Shipping Address
+```bash
+curl -X POST "http://localhost:8080/api/v1/account/addresses" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_ACCESS_TOKEN>" \
+  -d '{
+    "addressType": "SHIPPING",
+    "recipientName": "Aarav Sharma",
+    "phone": "+919876543299",
+    "addressLine1": "Tower 4, Sector 62",
+    "city": "Noida",
+    "state": "Uttar Pradesh",
+    "postalCode": "201309",
+    "countryCode": "IN",
+    "isDefault": true
+  }'
+```
+
+### Customer List Shipping Addresses
+```bash
+curl -X GET "http://localhost:8080/api/v1/account/addresses" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_ACCESS_TOKEN>"
+```
