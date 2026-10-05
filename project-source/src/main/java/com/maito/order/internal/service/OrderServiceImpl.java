@@ -249,6 +249,15 @@ public class OrderServiceImpl implements OrderService {
         log.info("Cancelled order [{}] and released reserved stock.", order.getOrderNumber());
     }
 
+    
+    @Override
+    @Transactional(readOnly = true)
+    public OrderResponse getOrderById(UUID orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found: " + orderId));
+        return toDto(order, getItemDtos(order.getId()));
+    }
+
     @Override
     @Transactional(readOnly = true)
     public OrderResponse getOrderByNumber(String orderNumber, UUID customerProfileId) {
