@@ -53,6 +53,22 @@ public class StorefrontOrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
     }
 
+
+    @PostMapping("/api/v1/checkout/payment-callback")
+    @Operation(summary = "Payment gateway webhook confirmation callback with body orderId")
+    public ResponseEntity<ApiResponse<OrderResponse>> confirmPaymentWithBody(
+            @RequestBody java.util.Map<String, Object> body
+    ) {
+        String orderIdStr = (String) body.get("orderId");
+        UUID orderId = UUID.fromString(orderIdStr);
+        String paymentRef = (String) body.getOrDefault("paymentReference", "pay_mock_" + System.currentTimeMillis());
+        String status = (String) body.getOrDefault("status", "PAID");
+        String sig = (String) body.get("signature");
+        PaymentCallbackCommand cmd = new PaymentCallbackCommand(paymentRef, status, sig);
+        OrderResponse response = orderService.confirmPayment(orderId, cmd);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
     @PostMapping("/api/v1/checkout/payment-callback/{orderId}")
     @Operation(summary = "Payment gateway webhook confirmation callback")
     public ResponseEntity<ApiResponse<OrderResponse>> confirmPayment(
@@ -88,3 +104,4 @@ public class StorefrontOrderController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }
+
