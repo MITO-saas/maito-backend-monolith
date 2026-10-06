@@ -22,7 +22,7 @@
             <column name="base_currency" type="VARCHAR(8)" defaultValue="INR">
                 <constraints nullable="false"/>
             </column>
-            <column name="supported_currencies" type="JSONB" defaultValueComputed="'[\"INR\", \"USD\"]'::jsonb">
+            <column name="supported_currencies" type="JSONB" defaultValueComputed="'[&quot;INR&quot;, &quot;USD&quot;]'::jsonb">
                 <constraints nullable="false"/>
             </column>
             <column name="timezone" type="VARCHAR(64)" defaultValue="Asia/Kolkata">
