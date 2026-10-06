@@ -22,6 +22,10 @@ public enum ErrorCode {
     ACCESS_DENIED("AUTH_4030", "Access denied: insufficient privileges", HttpStatus.FORBIDDEN),
     CARRIER_NOT_SUPPORTED("FULFILLMENT_4001", "Carrier not supported or unconfigured", HttpStatus.BAD_REQUEST),
     INVALID_DELIVERY_OTP("FULFILLMENT_4002", "Invalid delivery verification OTP", HttpStatus.BAD_REQUEST),
+    INSUFFICIENT_WALLET_BALANCE("WALLET_4001", "Insufficient wallet balance", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_SIGNATURE("PAYMENT_4001", "Invalid payment gateway signature", HttpStatus.BAD_REQUEST),
+    WALLET_NOT_FOUND("WALLET_4040", "Customer wallet not found", HttpStatus.NOT_FOUND),
+    PAYMENT_TRANSACTION_NOT_FOUND("PAYMENT_4040", "Payment transaction not found", HttpStatus.NOT_FOUND),
     INTERNAL_SERVER_ERROR("MAITO_5000", "An unexpected internal server error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
