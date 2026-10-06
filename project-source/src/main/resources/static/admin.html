@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mito Cloud | Enterprise Operations & Admin Console</title>
+  <meta name="description" content="Centralized multi-tenant operations, order fulfillment, B2B wholesale management, and commercial analytics console.">
+
+  <!-- Typography: Cabinet Grotesk, Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@700;800;900&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#D97706',
+              dark: '#B45309',
+              light: '#F59E0B',
+              surface: '#FFFBEB'
+            },
+            enterprise: {
+              dark: '#0F172A',
+              card: '#1E293B',
+              border: '#334155'
+            }
+          },
+          fontFamily: {
+            heading: ['"Cabinet Grotesk"', 'Outfit', 'sans-serif'],
+            body: ['"Inter"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #F8FAFC;
+      color: #0F172A;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Cabinet Grotesk', Outfit, sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-amber-500 selection:text-white">
+
+  <!-- ============================================================== -->
+  <!-- 1. UNAUTHENTICATED STATE: ADMIN LOGIN GATEWAY                  -->
+  <!-- ============================================================== -->
+  <div id="login-view" class="min-h-screen flex items-center justify-center bg-slate-950 p-4 sm:p-6 relative overflow-hidden">
+    <!-- Ambient Background Glows -->
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-amber-600/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 backdrop-blur-xl">
+      <!-- Console Branding -->
+      <div class="text-center mb-8">
+        <div class="inline-flex p-3 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl shadow-lg shadow-amber-500/30 mb-4 ring-4 ring-amber-500/20">
+          <i data-lucide="shield-check" class="w-8 h-8 text-white"></i>
+        </div>
+        <h1 class="text-2xl font-black text-white tracking-tight">Mito Operations Console</h1>
+        <p class="text-xs text-slate-400 mt-1 font-medium">Enterprise Gateway for Multi-Tenant Fleet Administration</p>
+      </div>
+
+      <!-- Error Feedback Alert -->
+      <div id="login-error" class="hidden mb-6 p-4 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-semibold"></div>
+
+      <!-- Quick Fill Demo Admin Trigger -->
+      <div class="mb-6">
+        <button type="button" id="demo-fill-btn" class="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500/10 to-indigo-500/10 hover:from-amber-500/20 hover:to-indigo-500/20 border border-amber-500/40 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center space-x-2 transition-all group">
+          <i data-lucide="sparkles" class="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform"></i>
+          <span>One-Click Demo Fill (Crunch Admin)</span>
+        </button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="admin-login-form" class="space-y-5">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Admin Email</label>
+          <div class="relative">
+            <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <input type="email" id="login-email" required value="admin@mitocrunch.com"
+                   class="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                   placeholder="admin@mitocrunch.com">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Master Password</label>
+          <div class="relative">
+            <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <input type="password" id="login-password" required value="Admin@2026"
+                   class="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                   placeholder="••••••••">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Target Tenant Fleet</label>
+          <div class="relative">
+            <i data-lucide="database" class="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500"></i>
+            <select id="login-tenant"
+                    class="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all appearance-none cursor-pointer">
+              <option value="mito_crunch" selected>mito_crunch (Mito Crunch Snacks)</option>
+              <option value="everrites">everrites (Everrites Organics)</option>
+              <option value="vijiyasolar">vijiyasolar (Vijiya Solar Energy)</option>
+            </select>
+            <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3.5 top-3.5 text-slate-500 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <button type="submit" id="login-btn"
+                class="w-full py-3 px-4 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center">
+          Sign In to Console
+        </button>
+      </form>
+
+      <!-- Security Stamp -->
+      <div class="mt-8 pt-6 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+        <span class="flex items-center space-x-1">
+          <i data-lucide="lock" class="w-3.5 h-3.5 text-amber-500"></i>
+          <span>Rate Limit Shielded</span>
+        </span>
+        <a href="/" class="text-amber-400 hover:text-amber-300 font-semibold flex items-center space-x-1">
+          <span>Back to Storefront</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 2. AUTHENTICATED STATE: FULL ENTERPRISE DASHBOARD              -->
+  <!-- ============================================================== -->
+  <div id="dashboard-view" class="hidden min-h-screen flex bg-slate-50">
+    
+    <!-- Enterprise Sidebar -->
+    <aside class="w-64 bg-slate-950 text-slate-300 flex-shrink-0 flex flex-col justify-between border-r border-slate-800">
+      <div>
+        <!-- Brand & Active Tenant Identifier -->
+        <div class="p-6 border-b border-slate-800/80">
+          <div class="flex items-center space-x-3">
+            <div class="p-2 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl text-slate-950 font-black shadow-md shadow-amber-500/20">
+              <i data-lucide="command" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="font-extrabold text-white text-base tracking-tight font-heading">MITO CLOUD</div>
+              <div class="text-[10px] uppercase tracking-wider text-amber-400 font-bold">Operator Desk</div>
+            </div>
+          </div>
+          
+          <div class="mt-4 flex items-center space-x-2 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs font-semibold text-slate-400">Tenant:</span>
+            <span class="active-tenant-label text-xs font-mono font-bold text-white">mito_crunch</span>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="p-4 space-y-1.5">
+          <button onclick="adminApp.switchTab('analytics')" data-tab="analytics"
+                  class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors">
+            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+            <span>Overview & KPIs</span>
+          </button>
+
+          <button onclick="adminApp.switchTab('orders')" data-tab="orders"
+                  class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors">
+            <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+            <span>Orders Management</span>
+          </button>
+
+          <button onclick="adminApp.switchTab('catalog')" data-tab="catalog"
+                  class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+            <span>Catalog & Inventory</span>
+          </button>
+
+          <button onclick="adminApp.switchTab('b2b')" data-tab="b2b"
+                  class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors">
+            <i data-lucide="building-2" class="w-4 h-4"></i>
+            <span>B2B HoReCa Portal</span>
+          </button>
+
+          <button onclick="adminApp.switchTab('returns')" data-tab="returns"
+                  class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            <span>Returns & QC Desk</span>
+          </button>
+
+          <button onclick="adminApp.switchTab('support')" data-tab="support"
+                  class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 transition-colors">
+            <i data-lucide="headphones" class="w-4 h-4"></i>
+            <span>Support Helpdesk</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Infrastructure Security & Health Stamp -->
+      <div class="p-4 border-t border-slate-800/80 space-y-3">
+        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-[11px] space-y-1.5">
+          <div class="flex items-center justify-between text-slate-400 font-semibold">
+            <span>OCI Cluster:</span>
+            <span class="text-emerald-400 font-mono">NON-ROOT</span>
+          </div>
+          <div class="flex items-center justify-between text-slate-400 font-semibold">
+            <span>Rate Limiter:</span>
+            <span class="text-amber-400 font-mono">ACTIVE (B4J)</span>
+          </div>
+          <div class="flex items-center justify-between text-slate-400 font-semibold">
+            <span>Actuator Health:</span>
+            <span class="text-emerald-400 font-mono">200 UP</span>
+          </div>
+        </div>
+
+        <button onclick="adminApp.logout()"
+                class="w-full flex items-center justify-center space-x-2 py-2 px-3 text-xs font-bold text-rose-400 hover:bg-rose-950/40 border border-rose-900/60 rounded-xl transition-colors">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Container -->
+    <div class="flex-1 flex flex-col min-h-screen overflow-hidden">
+      
+      <!-- Top Enterprise App Bar -->
+      <header class="bg-white border-b border-slate-200/80 px-6 py-3.5 flex items-center justify-between shadow-xs">
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Operations</span>
+            <span class="text-slate-300">/</span>
+            <span class="text-sm font-extrabold text-slate-800 font-heading">Console Dashboard</span>
+          </div>
+        </div>
+
+        <!-- Right Controls: Tenant Switcher, Storefront Link, Admin Badge -->
+        <div class="flex items-center space-x-4">
+          <!-- Live Tenant Selector -->
+          <div class="flex items-center space-x-1.5 bg-slate-100 rounded-xl px-2.5 py-1.5 border border-slate-200 text-xs">
+            <i data-lucide="building" class="w-3.5 h-3.5 text-slate-500"></i>
+            <span class="text-slate-500 font-semibold">Fleet:</span>
+            <select id="header-tenant-selector" onchange="adminApp.setTenant(this.value)"
+                    class="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer">
+              <option value="mito_crunch">mito_crunch</option>
+              <option value="everrites">everrites</option>
+              <option value="vijiyasolar">vijiyasolar</option>
+            </select>
+          </div>
+
+          <!-- Cross-Navigation: View Storefront Link -->
+          <a href="/" target="_blank"
+             class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors">
+            <i data-lucide="external-link" class="w-3.5 h-3.5 text-amber-600"></i>
+            <span>View Storefront</span>
+          </a>
+
+          <!-- Admin Avatar & Role -->
+          <div class="flex items-center space-x-3 pl-2 border-l border-slate-200">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-slate-950 font-black text-xs shadow-sm">
+              CA
+            </div>
+            <div class="hidden sm:block text-left">
+              <div id="admin-profile-name" class="text-xs font-bold text-slate-900 leading-tight">Crunch Admin</div>
+              <div class="text-[10px] text-emerald-600 font-semibold flex items-center">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1"></span> ROLE_TENANT_ADMIN
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Scrollable Main Workspace Canvas -->
+      <main class="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar">
+        
+        <!-- Tab 1: Commercial Analytics -->
+        <div id="pane-analytics" class="tab-pane">
+          <div id="analytics-content"></div>
+        </div>
+
+        <!-- Tab 2: Orders Management -->
+        <div id="pane-orders" class="tab-pane hidden">
+          <div id="orders-content"></div>
+        </div>
+
+        <!-- Tab 3: Catalog & Inventory -->
+        <div id="pane-catalog" class="tab-pane hidden">
+          <div id="catalog-content"></div>
+        </div>
+
+        <!-- Tab 4: B2B HoReCa Portal -->
+        <div id="pane-b2b" class="tab-pane hidden">
+          <div id="b2b-content"></div>
+        </div>
+
+        <!-- Tab 5: Returns & QC Desk -->
+        <div id="pane-returns" class="tab-pane hidden">
+          <div id="returns-content"></div>
+        </div>
+
+        <!-- Tab 6: Support Helpdesk -->
+        <div id="pane-support" class="tab-pane hidden">
+          <div id="support-content"></div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 3. MODALS FOR INTERACTIVE OPERATOR WORKFLOWS                  -->
+  <!-- ============================================================== -->
+
+  <!-- Modal 1: Adjust Stock Modal -->
+  <div id="adjust-stock-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <h3 class="font-bold text-slate-900 text-base">Adjust Warehouse Stock</h3>
+        <button onclick="adminApp.closeAdjustStockModal()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <input type="hidden" id="stock-variant-id">
+      <div class="space-y-4 my-5">
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Variant SKU</label>
+          <div id="stock-variant-sku" class="font-mono text-xs font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200">SKU</div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Quantity Delta (+/- units)</label>
+          <input type="number" id="stock-delta-input" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-amber-500" value="50">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Replenishment Audit Reason</label>
+          <input type="text" id="stock-reason-input" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-amber-500" value="Routine Warehouse Replenishment">
+        </div>
+      </div>
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+        <button onclick="adminApp.closeAdjustStockModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+        <button onclick="adminApp.submitStockAdjustment()" class="px-4 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl shadow-md shadow-amber-500/20">Apply Adjustment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Verify B2B Partner Modal -->
+  <div id="b2b-verify-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <h3 class="font-bold text-slate-900 text-base">Verify Corporate B2B Partner</h3>
+        <button onclick="adminApp.closeVerifyB2BModal()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <input type="hidden" id="b2b-partner-id">
+      <div class="space-y-4 my-5">
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Company Legal Name</label>
+          <div id="b2b-partner-name" class="text-xs font-bold text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-200">Company Name</div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Approved Credit Limit (₹ INR)</label>
+          <input type="number" id="b2b-credit-limit-input" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500" value="500000">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Payment Terms (Net Days)</label>
+          <input type="number" id="b2b-terms-input" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500" value="30">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Internal Underwriting Notes</label>
+          <input type="text" id="b2b-notes-input" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-indigo-500" value="GSTIN and Credit Evaluation Cleared">
+        </div>
+      </div>
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+        <button onclick="adminApp.closeVerifyB2BModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+        <button onclick="adminApp.submitVerifyB2B()" class="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/20">Verify & Grant Credit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Return QC Inspection Modal -->
+  <div id="qc-submit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <h3 class="font-bold text-slate-900 text-base">Submit Return QC Evaluation</h3>
+        <button onclick="adminApp.closeQcModal()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <input type="hidden" id="qc-return-id">
+      <div class="space-y-4 my-5">
+        <div class="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div>
+            <span class="text-[10px] uppercase font-bold text-slate-400">Return Ref</span>
+            <div id="qc-return-number" class="text-xs font-bold font-mono text-slate-900">RET-1001</div>
+          </div>
+          <div class="text-right">
+            <span class="text-[10px] uppercase font-bold text-slate-400">Refund Amount</span>
+            <div id="qc-refund-amount" class="text-xs font-bold text-emerald-600">₹0.00</div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Quality Inspection Verdict</label>
+          <select id="qc-passed-select" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800">
+            <option value="true" selected>PASS (Approved for Restock & Refund)</option>
+            <option value="false">FAIL (Damaged/Tampered - Reject Claim)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Settlement Refund Channel</label>
+          <select id="qc-refund-mode" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800">
+            <option value="WALLET" selected>WALLET (Instant Loyalty Wallet Credit)</option>
+            <option value="ORIGINAL_PAYMENT">ORIGINAL PAYMENT (Payment Gateway Reversal)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-400 mb-1">QC Inspection Notes</label>
+          <input type="text" id="qc-notes-input" class="w-full p-2.5 border border-slate-300 rounded-xl text-sm text-slate-900" value="Verified factory packaging intact. Approved for immediate restock.">
+        </div>
+      </div>
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+        <button onclick="adminApp.closeQcModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+        <button onclick="adminApp.submitQc()" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md shadow-emerald-600/20">Submit QC & Settle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Support Ticket Thread Modal -->
+  <div id="ticket-thread-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full flex flex-col max-h-[85vh] shadow-2xl border border-slate-100 overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div>
+          <span class="text-[10px] font-mono font-bold text-slate-400" id="ticket-modal-number">TCK-001</span>
+          <h3 class="font-bold text-slate-900 text-sm leading-snug" id="ticket-modal-subject">Ticket Subject</h3>
+        </div>
+        <button onclick="adminApp.closeTicketThreadModal()" class="p-1 rounded-lg hover:bg-slate-200 text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <input type="hidden" id="ticket-modal-id">
+      
+      <!-- Thread Chat Container -->
+      <div id="ticket-messages-container" class="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar bg-slate-50/30">
+        <!-- Messages rendered here -->
+      </div>
+
+      <!-- Agent Reply Box -->
+      <div class="p-4 border-t border-slate-100 bg-white">
+        <div class="flex space-x-2">
+          <textarea id="ticket-reply-input" rows="2" placeholder="Type official response to customer..."
+                    class="flex-1 p-2.5 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"></textarea>
+          <button onclick="adminApp.submitAdminReply()" class="px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl shadow-sm flex items-center justify-center">
+            <i data-lucide="send" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Toast Notifications Host -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-3 pointer-events-none"></div>
+
+  <!-- Application Entry Point -->
+  <script src="/assets/js/admin.js"></script>
+</body>
+</html>

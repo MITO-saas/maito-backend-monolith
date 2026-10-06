@@ -60,6 +60,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/",
                     "/index.html",
+                    "/admin.html",
                     "/assets/**",
                     "/favicon.ico",
                     "/swagger-ui/**",

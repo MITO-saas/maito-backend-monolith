@@ -25,7 +25,7 @@ public class AdminAnalyticsController {
 
     private final AnalyticsService analyticsService;
 
-    @GetMapping("/kpis")
+    @GetMapping({"/kpis", "/dashboard"})
     @Operation(summary = "Get high-level commercial dashboard KPIs (GMV, AOV, top-selling SKUs, stock risks)")
     public ResponseEntity<ApiResponse<DashboardKpiResponse>> getExecutiveKpis(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

@@ -34,6 +34,7 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
     private static final List<String> BYPASS_PATTERNS = List.of(
             "/",
             "/index.html",
+            "/admin.html",
             "/assets/**",
             "/favicon.ico",
             "/swagger-ui/**",
