@@ -31,7 +31,7 @@ public class MitoCrunchUserSeeder implements CommandLineRunner {
 
         try {
             // 1. Seed global identities in Master DB
-            GlobalUserDto adminUser = seedGlobalIdentity("admin@mitocrunch.com", "CrunchAdmin@2026", "+919876543210");
+            GlobalUserDto adminUser = seedGlobalIdentity("admin@mitocrunch.com", "Admin@2026", "+919876543210");
             GlobalUserDto customerUser = seedGlobalIdentity("customer@mitocrunch.com", "Customer@2026", "+919876543211");
 
             // 2. Seed tenant profiles in Mito Crunch Tenant DB
