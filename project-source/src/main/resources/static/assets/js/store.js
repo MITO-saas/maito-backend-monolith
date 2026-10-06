@@ -1,7 +1,7 @@
 /**
  * Maito Storefront Client State Manager
  * Provides reactive session state, JWT auth management, cart operations,
- * checkout flow, and fulfillment tracking.
+ * wallet/loyalty coin integration, checkout flow, and fulfillment tracking.
  */
 class MaitoStore {
   constructor() {
@@ -11,6 +11,8 @@ class MaitoStore {
     this.userProfile = this.getStoredProfile();
     this.cart = { items: [], subtotalAmount: 0, totalAmount: 0, currencyCode: 'INR' };
     this.appliedCoupon = null;
+    this.wallet = { balance: 0.00, currencyCode: 'INR', isActive: true };
+    this.coinsToRedeem = 0;
     this.listeners = [];
   }
 
@@ -104,6 +106,7 @@ class MaitoStore {
       }
 
       await this.fetchCart();
+      await this.fetchWalletBalance();
       this.notify('AUTH_CHANGED', { authenticated: true, user: this.userProfile });
       return res.data;
     }
@@ -129,6 +132,7 @@ class MaitoStore {
       }
 
       await this.fetchCart();
+      await this.fetchWalletBalance();
       this.notify('AUTH_CHANGED', { authenticated: true, user: this.userProfile });
       return res.data;
     }
@@ -139,6 +143,8 @@ class MaitoStore {
     this.authToken = null;
     this.userProfile = null;
     this.appliedCoupon = null;
+    this.wallet = { balance: 0.00, currencyCode: 'INR', isActive: true };
+    this.coinsToRedeem = 0;
     localStorage.removeItem('maito_auth_token');
     localStorage.removeItem('maito_user_profile');
     
@@ -148,6 +154,28 @@ class MaitoStore {
     this.cart = { items: [], subtotalAmount: 0, totalAmount: 0, currencyCode: 'INR' };
 
     this.notify('AUTH_CHANGED', { authenticated: false, user: null });
+    this.notify('CART_UPDATED', this.cart);
+    this.notify('WALLET_UPDATED', this.wallet);
+  }
+
+  // --- WALLET OPERATIONS ---
+  async fetchWalletBalance() {
+    if (!this.isAuthenticated()) return this.wallet;
+    try {
+      const res = await this.apiFetch('/api/v1/wallet/balance');
+      if (res.success && res.data) {
+        this.wallet = res.data;
+        this.notify('WALLET_UPDATED', this.wallet);
+        return this.wallet;
+      }
+    } catch (err) {
+      console.warn('Fetch wallet balance notice:', err.message);
+    }
+    return this.wallet;
+  }
+
+  setCoinsToRedeem(amount) {
+    this.coinsToRedeem = Math.max(0, Number(amount) || 0);
     this.notify('CART_UPDATED', this.cart);
   }
 
@@ -260,8 +288,10 @@ class MaitoStore {
     const discount = this.appliedCoupon ? Number(this.appliedCoupon.discountAmount || 0) : 0;
     const freeShipping = this.appliedCoupon ? Number(this.appliedCoupon.freeShippingSavings || 0) > 0 : false;
     const shipping = (subtotal >= 499 || freeShipping) ? 0 : 49;
-    const total = Math.max(0, subtotal - discount + shipping);
-    return { subtotal, discount, shipping, total };
+    const totalBeforeCoins = Math.max(0, subtotal - discount + shipping);
+    const coinsRedeemed = Math.min(this.coinsToRedeem, totalBeforeCoins);
+    const total = Math.max(0, totalBeforeCoins - coinsRedeemed);
+    return { subtotal, discount, shipping, coinsRedeemed, total };
   }
 
   // --- CHECKOUT & ORDER ---
@@ -272,7 +302,8 @@ class MaitoStore {
 
     const payload = {
       shippingAddress,
-      couponCode: this.appliedCoupon ? this.appliedCoupon.code : null
+      couponCode: this.appliedCoupon ? this.appliedCoupon.code : null,
+      coinsToRedeem: this.coinsToRedeem
     };
 
     const res = await this.apiFetch('/api/v1/checkout/create-order', {
@@ -291,12 +322,16 @@ class MaitoStore {
         console.warn('Mock payment callback auto-transition note:', payErr.message);
       }
 
-      // Reset cart
+      // Reset cart and coins
       this.appliedCoupon = null;
+      this.coinsToRedeem = 0;
       localStorage.removeItem('maito_cart_id');
       this.cartId = this.getOrCreateCartId();
       this.cart = { items: [], subtotalAmount: 0, totalAmount: 0, currencyCode: 'INR' };
       this.notify('CART_UPDATED', this.cart);
+
+      // Refresh wallet balance post-purchase
+      await this.fetchWalletBalance();
 
       return order;
     }

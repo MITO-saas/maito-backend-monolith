@@ -91,14 +91,22 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/checkout/payment-callback").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/checkout/payment-callback/**").permitAll()
 
+                // Public Payment Gateway Ingress & Webhook
+                .requestMatchers(HttpMethod.POST, "/api/v1/payments/webhook/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/payments/initialize").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/payments/verify-signature").permitAll()
+
                 // Public Storefront Fulfillment Tracking
                 .requestMatchers(HttpMethod.GET, "/api/v1/fulfillment/track/**").permitAll()
+
+                // Customer Wallet Ingress
+                .requestMatchers("/api/v1/wallet/**").hasAnyRole("TENANT_CUSTOMER", "CUSTOMER", "TENANT_ADMIN", "ADMIN")
 
                 // Customer Profile Gated Ingress
                 .requestMatchers(HttpMethod.POST, "/api/v1/cart/merge").hasAnyRole("TENANT_CUSTOMER", "CUSTOMER", "TENANT_ADMIN", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/checkout/create-order").hasAnyRole("TENANT_CUSTOMER", "CUSTOMER", "TENANT_ADMIN", "ADMIN")
 
-                // Tenant Admin Ingress
+                // Tenant Admin Ingress (including Admin Wallet adjustment)
                 .requestMatchers("/api/v1/admin/**").hasAnyRole("TENANT_ADMIN", "ADMIN")
 
                 // Customer Account Ingress
@@ -135,4 +143,3 @@ public class SecurityConfig {
         };
     }
 }
-

@@ -3,7 +3,7 @@
     "name": "Maito Multi-Tenant Platform Core API",
     "description": "Enterprise Control Plane, Dynamic Tenant Routing, Connection Telemetry, and Decommissioning",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "7.0.0-phase7-analytics"
+    "version": "9.0.0-phase9-wallet"
   },
   "item": [
     {
@@ -2447,6 +2447,195 @@
                   "key": "size",
                   "value": "20"
                 }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase 9: Wallet & Payment Gateway",
+      "item": [
+        {
+          "name": "Get Active Wallet Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customer_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallet/balance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "wallet",
+                "balance"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Wallet Transaction Ledger",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customer_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/wallet/transactions?page=0&size=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "wallet",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Manual Wallet Adjustment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerProfileId\": \"cc6d58ae-0280-4a88-bf1b-4bf6cc1bc9c7\",\n  \"transactionType\": \"CREDIT\",\n  \"amount\": 100,\n  \"category\": \"CUSTOMER_SUPPORT_GOODWILL\",\n  \"referenceId\": \"TICKET-1049\",\n  \"reason\": \"Compensation for delay\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/wallet/adjust",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "wallet",
+                "adjust"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Initialize Payment Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"9f8b6123-8f7a-4acf-bfcf-dea623d00405\",\n  \"amount\": 525.8,\n  \"currency\": \"INR\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/initialize",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "initialize"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Razorpay Webhook Callback (HMAC-Verified)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch",
+                "type": "text"
+              },
+              {
+                "key": "X-Razorpay-Signature",
+                "value": "{{razorpay_signature}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.captured\",\n  \"order_id\": \"order_rzp_mock_123456\",\n  \"payment_id\": \"pay_mock_789101\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/webhook/razorpay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "webhook",
+                "razorpay"
               ]
             }
           }
