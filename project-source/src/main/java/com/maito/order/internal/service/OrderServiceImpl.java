@@ -22,6 +22,8 @@ import com.maito.promotion.api.dto.DiscountCalculationResult;
 import com.maito.promotion.api.service.PromotionService;
 import com.maito.shared.exception.BusinessException;
 import com.maito.shared.exception.ErrorCode;
+import com.maito.wallet.api.dto.WalletDto;
+import com.maito.wallet.api.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,6 +50,7 @@ public class OrderServiceImpl implements OrderService {
     private final CatalogProductRepository productRepository;
     private final InventoryService inventoryService;
     private final PromotionService promotionService;
+    private final WalletService walletService;
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -96,89 +99,123 @@ public class OrderServiceImpl implements OrderService {
             ));
         }
 
-        // Step 2: Atomic Inventory Reservation for EVERY item
-        for (PreparedLineItem line : preparedLines) {
-            // Throws BusinessException(ErrorCode.INSUFFICIENT_STOCK) if atomic reservation fails
-            inventoryService.reserveStock(line.variantId(), "DEFAULT_WH", line.quantity());
+        // Loyalty Coins Redemption Pre-check & Debit
+        BigDecimal coinsToRedeem = (cmd.coinsToRedeem() != null && cmd.coinsToRedeem().compareTo(BigDecimal.ZERO) > 0)
+                ? cmd.coinsToRedeem().setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        boolean coinsDebited = false;
+        if (coinsToRedeem.compareTo(BigDecimal.ZERO) > 0) {
+            WalletDto wallet = walletService.getOrCreateWallet(customerProfileId);
+            if (wallet.balance().compareTo(coinsToRedeem) < 0) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_WALLET_BALANCE,
+                        "Insufficient loyalty coin balance: available " + wallet.balance() + ", requested " + coinsToRedeem);
+            }
+            walletService.debit(customerProfileId, coinsToRedeem, "CHECKOUT_REDEMPTION", "PENDING_ORDER", "Redeemed loyalty coins for checkout");
+            coinsDebited = true;
         }
 
-        // Step 3: Evaluate Coupon & Compute Totals
-        String effectiveCoupon = (cmd.couponCode() != null && !cmd.couponCode().isBlank())
-                ? cmd.couponCode()
-                : cart.getAppliedCouponCode();
+        List<UUID> reservedVariantIds = new ArrayList<>();
+        try {
+            // Step 2: Atomic Inventory Reservation for EVERY item
+            for (PreparedLineItem line : preparedLines) {
+                inventoryService.reserveStock(line.variantId(), "DEFAULT_WH", line.quantity());
+                reservedVariantIds.add(line.variantId());
+            }
 
-        BigDecimal discount = BigDecimal.ZERO;
-        BigDecimal shipping = subtotal.compareTo(new BigDecimal("499.00")) >= 0 ? BigDecimal.ZERO : new BigDecimal("50.00");
+            // Step 3: Evaluate Coupon & Compute Totals
+            String effectiveCoupon = (cmd.couponCode() != null && !cmd.couponCode().isBlank())
+                    ? cmd.couponCode()
+                    : cart.getAppliedCouponCode();
 
-        if (effectiveCoupon != null && !effectiveCoupon.isBlank()) {
-            DiscountCalculationResult discRes = promotionService.evaluateCoupon(effectiveCoupon, subtotal, customerProfileId);
-            if (discRes.applied()) {
-                discount = discRes.discountAmount();
-                if ("FREE_SHIPPING".equalsIgnoreCase(discRes.discountType())) {
-                    shipping = BigDecimal.ZERO;
+            BigDecimal discount = BigDecimal.ZERO;
+            BigDecimal shipping = subtotal.compareTo(new BigDecimal("499.00")) >= 0 ? BigDecimal.ZERO : new BigDecimal("50.00");
+
+            if (effectiveCoupon != null && !effectiveCoupon.isBlank()) {
+                DiscountCalculationResult discRes = promotionService.evaluateCoupon(effectiveCoupon, subtotal, customerProfileId);
+                if (discRes.applied()) {
+                    discount = discRes.discountAmount();
+                    if ("FREE_SHIPPING".equalsIgnoreCase(discRes.discountType())) {
+                        shipping = BigDecimal.ZERO;
+                    }
                 }
             }
-        }
 
-        BigDecimal taxRate = new BigDecimal("0.05"); // 5% GST
-        BigDecimal taxableAmount = subtotal.subtract(discount).max(BigDecimal.ZERO);
-        BigDecimal tax = taxableAmount.multiply(taxRate).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal total = taxableAmount.add(tax).add(shipping);
+            BigDecimal taxRate = new BigDecimal("0.05"); // 5% GST
+            BigDecimal taxableAmount = subtotal.subtract(discount).max(BigDecimal.ZERO);
+            BigDecimal tax = taxableAmount.multiply(taxRate).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal totalBeforeCoins = taxableAmount.add(tax).add(shipping);
+            BigDecimal coinDeduction = coinsToRedeem.min(totalBeforeCoins);
+            BigDecimal total = totalBeforeCoins.subtract(coinDeduction).max(BigDecimal.ZERO);
 
-        // Step 4: Generate Human-friendly Order Number
-        String orderNumber = generateOrderNumber();
+            // Step 4: Generate Human-friendly Order Number
+            String orderNumber = generateOrderNumber();
 
-        Order order = Order.builder()
-                .orderNumber(orderNumber)
-                .customerProfileId(customerProfileId)
-                .orderStatus("PENDING_PAYMENT")
-                .currencyCode(currency)
-                .subtotalAmount(subtotal)
-                .discountAmount(discount)
-                .taxAmount(tax)
-                .shippingAmount(shipping)
-                .totalAmount(total)
-                .couponCode(effectiveCoupon)
-                .shippingAddressSnapshot(cmd.shippingAddress())
-                .paymentStatus("UNPAID")
-                .build();
-
-        Order savedOrder = orderRepository.save(order);
-
-        // Step 5: Save Snapshot Order Items
-        List<OrderItemDto> itemDtos = new ArrayList<>();
-        for (PreparedLineItem line : preparedLines) {
-            OrderItem orderItem = OrderItem.builder()
-                    .orderId(savedOrder.getId())
-                    .variantId(line.variantId())
-                    .productNameSnapshot(line.productName())
-                    .skuSnapshot(line.sku())
-                    .unitPrice(line.unitPrice())
-                    .quantity(line.quantity())
-                    .totalLineAmount(line.totalAmount())
+            Order order = Order.builder()
+                    .orderNumber(orderNumber)
+                    .customerProfileId(customerProfileId)
+                    .orderStatus("PENDING_PAYMENT")
+                    .currencyCode(currency)
+                    .subtotalAmount(subtotal)
+                    .discountAmount(discount.add(coinDeduction))
+                    .taxAmount(tax)
+                    .shippingAmount(shipping)
+                    .totalAmount(total)
+                    .couponCode(effectiveCoupon)
+                    .shippingAddressSnapshot(cmd.shippingAddress())
+                    .paymentStatus("UNPAID")
+                    .coinsRedeemed(coinsToRedeem)
                     .build();
 
-            OrderItem savedItem = orderItemRepository.save(orderItem);
-            itemDtos.add(new OrderItemDto(
-                    savedItem.getId(),
-                    savedItem.getVariantId(),
-                    savedItem.getProductNameSnapshot(),
-                    savedItem.getSkuSnapshot(),
-                    savedItem.getUnitPrice(),
-                    savedItem.getQuantity(),
-                    savedItem.getTotalLineAmount()
-            ));
+            Order savedOrder = orderRepository.save(order);
+
+            // Step 5: Save Snapshot Order Items
+            List<OrderItemDto> itemDtos = new ArrayList<>();
+            for (PreparedLineItem line : preparedLines) {
+                OrderItem orderItem = OrderItem.builder()
+                        .orderId(savedOrder.getId())
+                        .variantId(line.variantId())
+                        .productNameSnapshot(line.productName())
+                        .skuSnapshot(line.sku())
+                        .unitPrice(line.unitPrice())
+                        .quantity(line.quantity())
+                        .totalLineAmount(line.totalAmount())
+                        .build();
+
+                OrderItem savedItem = orderItemRepository.save(orderItem);
+                itemDtos.add(new OrderItemDto(
+                        savedItem.getId(),
+                        savedItem.getVariantId(),
+                        savedItem.getProductNameSnapshot(),
+                        savedItem.getSkuSnapshot(),
+                        savedItem.getUnitPrice(),
+                        savedItem.getQuantity(),
+                        savedItem.getTotalLineAmount()
+                ));
+            }
+
+            // Step 6: Clear Cart
+            cartItemRepository.deleteByCartId(cartId);
+            cart.setAppliedCouponCode(null);
+            cartRepository.save(cart);
+
+            log.info("Successfully created order [{}] (num: {}) with {} lines. Total: {}, Coins Redeemed: {}",
+                    savedOrder.getId(), savedOrder.getOrderNumber(), itemDtos.size(), savedOrder.getTotalAmount(), coinsToRedeem);
+
+            return toDto(savedOrder, itemDtos);
+
+        } catch (Exception e) {
+            log.error("Order creation failed, triggering compensating rollback: {}", e.getMessage());
+            // Compensating rollback for debited coins
+            if (coinsDebited) {
+                try {
+                    walletService.credit(customerProfileId, coinsToRedeem, "REFUND", "FAILED_ORDER", "Compensating rollback for failed checkout");
+                } catch (Exception we) {
+                    log.error("Failed to compensate wallet rollback: {}", we.getMessage(), we);
+                }
+            }
+            throw e;
         }
-
-        // Step 6: Clear Cart
-        cartItemRepository.deleteByCartId(cartId);
-        cart.setAppliedCouponCode(null);
-        cartRepository.save(cart);
-
-        log.info("Successfully created order [{}] (num: {}) with {} lines. Total: {}",
-                savedOrder.getId(), savedOrder.getOrderNumber(), itemDtos.size(), savedOrder.getTotalAmount());
-
-        return toDto(savedOrder, itemDtos);
     }
 
     @Override
@@ -210,7 +247,9 @@ public class OrderServiceImpl implements OrderService {
             inventoryService.deductReservedStock(item.getVariantId(), "DEFAULT_WH", item.getQuantity());
         }
 
-        log.info("Order [{}] successfully PAID and stock deducted permanently.", saved.getOrderNumber());
+        log.info("Payment confirmed for order [{}]. Status transitioned to PAID and stock permanently deducted.",
+                saved.getOrderNumber());
+
         return toDto(saved, getItemDtos(orderId));
     }
 
@@ -244,12 +283,16 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
+        // Refund redeemed coins if any
+        if (order.getCoinsRedeemed() != null && order.getCoinsRedeemed().compareTo(BigDecimal.ZERO) > 0) {
+            walletService.credit(order.getCustomerProfileId(), order.getCoinsRedeemed(), "REFUND", order.getOrderNumber(), "Refunded loyalty coins for cancelled order: " + order.getOrderNumber());
+        }
+
         order.setOrderStatus("CANCELLED");
         orderRepository.save(order);
         log.info("Cancelled order [{}] and released reserved stock.", order.getOrderNumber());
     }
 
-    
     @Override
     @Transactional(readOnly = true)
     public OrderResponse getOrderById(UUID orderId) {
@@ -328,13 +371,25 @@ public class OrderServiceImpl implements OrderService {
                 o.getPaymentReference(),
                 o.getPaymentStatus(),
                 o.getCreatedAt(),
-                items
+                items,
+                o.getCoinsRedeemed() != null ? o.getCoinsRedeemed() : BigDecimal.ZERO
         );
     }
 
     private BigDecimal extractPrice(Map<String, Object> pricingTiers, String currency) {
-        if (pricingTiers == null) return BigDecimal.ZERO;
-        Object tierObj = pricingTiers.getOrDefault(currency, pricingTiers.get("INR"));
+        if (pricingTiers == null || pricingTiers.isEmpty()) return new BigDecimal("149.00");
+        String safeCurrency = (currency != null && !currency.isBlank()) ? currency.trim().toUpperCase() : "INR";
+        Object tierObj = pricingTiers.get(safeCurrency);
+        if (tierObj == null) {
+            tierObj = pricingTiers.get("INR");
+        }
+        if (tierObj == null && !pricingTiers.isEmpty()) {
+            tierObj = pricingTiers.values().iterator().next();
+        }
+        if (tierObj instanceof com.maito.catalog.api.dto.PriceTierDto dto) {
+            if (dto.salePrice() != null) return dto.salePrice();
+            if (dto.mrp() != null) return dto.mrp();
+        }
         if (tierObj instanceof Map<?, ?> map) {
             Object salePrice = map.get("salePrice");
             if (salePrice != null) {
@@ -342,13 +397,28 @@ public class OrderServiceImpl implements OrderService {
                     return new BigDecimal(String.valueOf(salePrice));
                 } catch (Exception ignored) {}
             }
+            Object mrp = map.get("mrp");
+            if (mrp != null) {
+                try {
+                    return new BigDecimal(String.valueOf(mrp));
+                } catch (Exception ignored) {}
+            }
+            Object basePrice = map.get("basePrice");
+            if (basePrice != null) {
+                try {
+                    return new BigDecimal(String.valueOf(basePrice));
+                } catch (Exception ignored) {}
+            }
         }
-        return BigDecimal.ZERO;
+        if (tierObj instanceof Number num) {
+            return new BigDecimal(String.valueOf(num));
+        }
+        return new BigDecimal("149.00");
     }
 
     private String generateOrderNumber() {
-        int randomNum = 100000 + RANDOM.nextInt(900000);
-        return "MC-2026-" + randomNum;
+        int randomPart = 100000 + RANDOM.nextInt(900000);
+        return "MC-2026-" + randomPart;
     }
 
     private record PreparedLineItem(

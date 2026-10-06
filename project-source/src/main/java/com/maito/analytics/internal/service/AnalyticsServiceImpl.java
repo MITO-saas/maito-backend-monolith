@@ -20,7 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -44,8 +44,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         LocalDate start = startDate != null ? startDate : LocalDate.now().minusDays(30);
         LocalDate end = endDate != null ? endDate : LocalDate.now();
 
-        Instant startInstant = start.atStartOfDay().toInstant(ZoneOffset.UTC);
-        Instant endInstant = end.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant startInstant = start.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant endInstant = end.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
 
         List<Order> paidOrders = orderRepository.findPaidOrdersBetween(startInstant, endInstant);
 
@@ -107,8 +107,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         LocalDate start = startDate != null ? startDate : LocalDate.now().minusDays(30);
         LocalDate end = endDate != null ? endDate : LocalDate.now();
 
-        Instant startInstant = start.atStartOfDay().toInstant(ZoneOffset.UTC);
-        Instant endInstant = end.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant startInstant = start.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant endInstant = end.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
 
         List<Order> paidOrders = orderRepository.findPaidOrdersBetween(startInstant, endInstant);
 
@@ -121,7 +121,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
 
         for (Order o : paidOrders) {
-            LocalDate orderDate = o.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate();
+            LocalDate orderDate = o.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate();
             DailySalesAgg agg = dailyMap.get(orderDate);
             if (agg != null) {
                 agg.orderCount++;
@@ -160,3 +160,4 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         }
     }
 }
+
