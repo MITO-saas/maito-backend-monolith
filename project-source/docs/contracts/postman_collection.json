@@ -3,7 +3,7 @@
     "name": "Maito Multi-Tenant Platform Core API",
     "description": "Enterprise Control Plane, Dynamic Tenant Routing, Connection Telemetry, and Decommissioning",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "10.0.0-phase10-returns"
+    "version": "v11.0.0-phase11-b2b"
   },
   "item": [
     {
@@ -3138,6 +3138,326 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 11: B2B Wholesale, HoReCa & Credit Term Invoicing",
+      "item": [
+        {
+          "name": "Register B2B Partner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customer_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyLegalName\": \"Grand Hyatt Patna Hospitality Pvt Ltd\",\n  \"tradeName\": \"Grand Hyatt\",\n  \"gstin\": \"10ABCDE1234F1Z5\",\n  \"fssaiLicenseNumber\": \"FSSAI-11223344556677\",\n  \"billingAddress\": {\n    \"addressLine1\": \"Fraser Road\",\n    \"city\": \"Patna\",\n    \"state\": \"Bihar\",\n    \"postalCode\": \"800001\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/b2b/register-partner",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "b2b",
+                "register-partner"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get B2B Profile & Credit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/b2b/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "b2b",
+                "profile"
+              ]
+            }
+          }
+        },
+        {
+          "name": "View Contract Tiered Pricing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/b2b/pricing",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "b2b",
+                "pricing"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Place B2B Bulk Order (Net-30)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customer_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{variant_id}}\",\n      \"quantity\": 100\n    }\n  ],\n  \"paymentTerms\": \"NET_30\",\n  \"notes\": \"Bulk banquet order\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/b2b/bulk-orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "b2b",
+                "bulk-orders"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List B2B Invoices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/b2b/invoices?page=0&size=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "b2b",
+                "invoices"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pay B2B Invoice & Restore Credit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/b2b/invoices/{{invoice_id}}/pay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "b2b",
+                "invoices",
+                "{{invoice_id}}",
+                "pay"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin - List B2B Partners",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/b2b/partners?status=PENDING_VERIFICATION&page=0&size=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "b2b",
+                "partners"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING_VERIFICATION"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin - Verify Partner & Assign Credit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verificationStatus\": \"VERIFIED\",\n  \"creditLimit\": 500000,\n  \"paymentTermsDays\": 30,\n  \"notes\": \"KYC verified\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/b2b/partners/{{partner_id}}/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "b2b",
+                "partners",
+                "{{partner_id}}",
+                "verify"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin - Add Volume Price Tier",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_slug}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"variantId\": \"{{variant_id}}\",\n  \"minQuantity\": 50,\n  \"wholesaleUnitPrice\": 95,\n  \"currencyCode\": \"INR\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/b2b/pricing-tiers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "b2b",
+                "pricing-tiers"
+              ]
+            }
+          }
         }
       ]
     }
