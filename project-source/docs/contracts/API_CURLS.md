@@ -848,3 +848,143 @@ curl -X POST "http://localhost:8080/api/v1/checkout/create-order" \
     "coinsToRedeem": 100.00
   }'
 ```
+
+
+---
+
+## PHASE 10: RETURNS, REVERSE LOGISTICS & CUSTOMER SUPPORT HELPDESK
+
+### 1. Initiate Customer Return Request
+```bash
+curl -X POST "http://localhost:8080/api/v1/returns/request" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "<DELIVERED_ORDER_UUID>",
+    "reasonCategory": "DEFECTIVE_PRODUCT",
+    "customerNotes": "Package damaged upon delivery and pouch torn.",
+    "proofMediaUrls": [
+      "https://cdn.mitocrunch.com/returns/damage_proof_1.jpg"
+    ],
+    "items": [
+      {
+        "orderItemId": "<ORDER_ITEM_UUID>",
+        "quantity": 2
+      }
+    ]
+  }'
+```
+
+### 2. View Customer Return Claims
+```bash
+curl -X GET "http://localhost:8080/api/v1/returns/my-requests?page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 3. Get Return Claim Details
+```bash
+curl -X GET "http://localhost:8080/api/v1/returns/<RETURN_REQUEST_UUID>" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 4. Admin: List All Tenant Returns (Filterable)
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/returns?status=REQUESTED&page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+### 5. Admin: Approve Return Claim
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/returns/<RETURN_REQUEST_UUID>/approve" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+### 6. Admin: Submit QC Evaluation (PASS/FAIL -> Auto Restock & Refund)
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/returns/<RETURN_REQUEST_UUID>/qc-submit" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "passed": true,
+    "qcNotes": "Item returned sealed in original package. Inspection passed.",
+    "refundMode": "WALLET"
+  }'
+```
+
+### 7. Customer: Create Support Ticket
+```bash
+curl -X POST "http://localhost:8080/api/v1/support/tickets" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "<OPTIONAL_ORDER_UUID>",
+    "category": "ORDER_DELIVERY_ISSUE",
+    "subject": "Delay in delivery slot dispatch",
+    "priority": "HIGH",
+    "message": "My scheduled delivery slot has passed and no courier update has arrived.",
+    "attachmentUrls": []
+  }'
+```
+
+### 8. Customer: List Tickets
+```bash
+curl -X GET "http://localhost:8080/api/v1/support/tickets?page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 9. Customer: View Ticket Details & Conversation History
+```bash
+curl -X GET "http://localhost:8080/api/v1/support/tickets/<TICKET_UUID_OR_NUMBER>" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 10. Customer: Reply To Support Ticket
+```bash
+curl -X POST "http://localhost:8080/api/v1/support/tickets/<TICKET_UUID>/messages" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Thank you for the update, courier has contacted me.",
+    "attachmentUrls": []
+  }'
+```
+
+### 11. Admin: View All Tenant Support Tickets
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/support/tickets?status=OPEN&page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+### 12. Admin: Update Ticket Status
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/support/tickets/<TICKET_UUID>/status" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "RESOLVED"
+  }'
+```
+
+### 13. Admin: Agent Reply To Ticket
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/support/tickets/<TICKET_UUID>/messages" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Our logistics coordinator has expedited your delivery.",
+    "attachmentUrls": []
+  }'
+```
