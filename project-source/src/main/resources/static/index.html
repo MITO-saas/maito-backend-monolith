@@ -19,15 +19,15 @@
         extend: {
           colors: {
             brand: {
-              DEFAULT: 'var(--color-primary, #D97706)',
+              DEFAULT: '#D97706',
               dark: '#B45309',
               light: '#F59E0B',
               surface: '#FFFBEB'
             }
           },
           fontFamily: {
-            heading: ['var(--font-heading, "Cabinet Grotesk")', 'Outfit', 'sans-serif'],
-            body: ['var(--font-body, "Inter")', 'sans-serif']
+            heading: ['"Cabinet Grotesk"', 'Outfit', 'sans-serif'],
+            body: ['"Inter"', 'sans-serif']
           }
         }
       }
@@ -42,7 +42,7 @@
       --color-primary: #D97706;
       --font-heading: 'Cabinet Grotesk', sans-serif;
       --font-body: 'Inter', sans-serif;
-      --border-radius: 8px;
+      --border-radius: 12px;
     }
     body {
       font-family: var(--font-body);
@@ -53,17 +53,35 @@
     h1, h2, h3, h4, .font-heading {
       font-family: var(--font-heading);
     }
-    .custom-radius {
-      border-radius: var(--border-radius);
+    /* Smooth Transitions & Drawer */
+    .drawer-overlay {
+      transition: opacity 0.3s ease-in-out;
     }
-    .carousel-slide {
-      transition: opacity 0.6s ease-in-out;
+    .drawer-panel {
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .stepper-line-active {
+      background: linear-gradient(90deg, #10B981, #059669);
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col antialiased selection:bg-amber-100 selection:text-amber-900">
 
-  <!-- Mount Point for SDUI Top Elements -->
+  <!-- Mount Point for SDUI Promo Strip -->
   <div id="promo-strip-container"></div>
 
   <!-- Global Storefront Header -->
@@ -80,19 +98,37 @@
         <a href="#featured" class="hover:text-amber-600 transition-colors">Trending Flavors</a>
         <a href="#story" class="hover:text-amber-600 transition-colors">Our Roots</a>
         <a href="#about" class="hover:text-amber-600 transition-colors">Mithila Wetlands</a>
-        <a href="#contact" class="hover:text-amber-600 transition-colors">Direct Sourcing</a>
+        <button onclick="openTrackingModal()" class="hover:text-amber-600 transition-colors flex items-center space-x-1 font-semibold text-slate-800">
+          <i data-lucide="truck" class="w-4 h-4 text-amber-600"></i>
+          <span>Track Order</span>
+        </button>
       </nav>
 
-      <!-- Action Items & Tenant Switcher -->
-      <div class="flex items-center space-x-4">
-        <div class="hidden sm:flex items-center bg-slate-100 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600">
+      <!-- Action Items & User Controls -->
+      <div class="flex items-center space-x-3 sm:space-x-4">
+        
+        <!-- Tenant Badge Indicator -->
+        <div class="hidden lg:flex items-center bg-slate-100 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200">
           <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
           Tenant: <span id="tenant-badge" class="ml-1 text-slate-900 font-bold">mito_crunch</span>
         </div>
-        
-        <button id="cart-btn" class="relative p-2 text-slate-700 hover:text-amber-600 hover:bg-slate-100 rounded-full transition-colors">
+
+        <!-- Auth Gating Button (Sign In / User Menu) -->
+        <div id="auth-header-container" class="relative">
+          <button id="auth-btn" onclick="openAuthModal()" 
+                  class="flex items-center space-x-2 px-3.5 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition-all">
+            <i data-lucide="user" class="w-4 h-4 text-slate-600"></i>
+            <span>Sign In</span>
+          </button>
+        </div>
+
+        <!-- Interactive Cart Button with Badge -->
+        <button id="cart-btn" onclick="openCartDrawer()" 
+                class="relative p-2.5 text-slate-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all active:scale-95" 
+                aria-label="View Shopping Cart">
           <i data-lucide="shopping-bag" class="w-5 h-5"></i>
-          <span id="cart-count" class="absolute -top-1 -right-1 bg-amber-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+          <span id="cart-badge" 
+                class="absolute -top-1 -right-1 bg-amber-600 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center shadow-md scale-100 transition-transform">0</span>
         </button>
       </div>
     </div>
@@ -114,27 +150,947 @@
     </div>
   </main>
 
-  <!-- Notification Toast -->
-  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3">
-    <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
-    <span id="toast-msg" class="text-sm font-medium">Added to Cart!</span>
+  <!-- ========================================================================= -->
+  <!-- 1. SLIDE-OVER CART DRAWER -->
+  <!-- ========================================================================= -->
+  <div id="cart-drawer-container" class="fixed inset-0 z-50 pointer-events-none transition-all">
+    <!-- Backdrop -->
+    <div id="cart-backdrop" onclick="closeCartDrawer()" 
+         class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300 pointer-events-none"></div>
+
+    <!-- Slide Panel -->
+    <div id="cart-panel" 
+         class="absolute inset-y-0 right-0 max-w-full w-full sm:w-[440px] bg-white shadow-2xl flex flex-col pointer-events-auto transform translate-x-full transition-transform duration-300 ease-out">
+      
+      <!-- Drawer Header -->
+      <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-600"></i>
+          <h2 class="text-lg font-extrabold text-slate-900">Your Shopping Cart</h2>
+          <span id="drawer-item-count" class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">0 items</span>
+        </div>
+        <button onclick="closeCartDrawer()" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Drawer Items List -->
+      <div id="cart-items-list" class="flex-grow overflow-y-auto px-6 py-4 space-y-4">
+        <!-- Rendered dynamically by renderCartDrawer() -->
+      </div>
+
+      <!-- Coupon & Financial Summary Footer -->
+      <div id="cart-footer" class="border-t border-slate-100 p-6 bg-slate-50/70 space-y-4">
+        
+        <!-- Coupon Input Box -->
+        <div>
+          <div class="flex items-center space-x-2">
+            <div class="relative flex-grow">
+              <i data-lucide="tag" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="coupon-input" placeholder="Promo code (e.g. CRUNCH20)" 
+                     class="w-full pl-9 pr-3 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-amber-600 uppercase tracking-wider" />
+            </div>
+            <button onclick="handleApplyCoupon()" 
+                    id="coupon-apply-btn"
+                    class="px-4 py-2 bg-slate-900 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-all shadow-sm">
+              Apply
+            </button>
+          </div>
+          <!-- Applied Coupon Alert Badge -->
+          <div id="coupon-badge-container" class="mt-2 hidden"></div>
+        </div>
+
+        <!-- Totals Calculation -->
+        <div class="space-y-1.5 text-xs font-medium text-slate-600 border-t border-slate-200/60 pt-3">
+          <div class="flex justify-between">
+            <span>Subtotal</span>
+            <span id="cart-subtotal" class="font-bold text-slate-900">₹0.00</span>
+          </div>
+          <div id="cart-discount-row" class="flex justify-between text-emerald-600 hidden">
+            <span>Promotional Discount</span>
+            <span id="cart-discount" class="font-bold">-₹0.00</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Shipping</span>
+            <span id="cart-shipping" class="font-bold text-slate-900">Calculated at checkout</span>
+          </div>
+          <div class="flex justify-between text-base font-extrabold text-slate-900 pt-2 border-t border-slate-200">
+            <span>Total Payable</span>
+            <span id="cart-total" class="text-amber-600">₹0.00</span>
+          </div>
+        </div>
+
+        <!-- Checkout Action Button -->
+        <button id="checkout-action-btn" onclick="proceedToCheckout()" 
+                class="w-full py-3.5 bg-amber-600 hover:bg-amber-700 text-slate-950 font-extrabold text-sm rounded-xl shadow-lg shadow-amber-600/20 transition-all flex items-center justify-center space-x-2 active:scale-98">
+          <span>Proceed to Checkout</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
   </div>
 
-  <!-- SDUI Engine JavaScript Application -->
+  <!-- ========================================================================= -->
+  <!-- 2. ONE-PAGE CHECKOUT MODAL -->
+  <!-- ========================================================================= -->
+  <div id="checkout-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeCheckoutModal()"></div>
+    
+    <div class="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-100 z-10 p-6 sm:p-8">
+      
+      <!-- Checkout Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div>
+          <span class="text-xs font-bold text-amber-600 uppercase tracking-widest">Express Checkout</span>
+          <h2 class="text-2xl font-extrabold text-slate-900 mt-0.5">Shipping & Payment</h2>
+        </div>
+        <button onclick="closeCheckoutModal()" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Checkout Body / Form -->
+      <div id="checkout-form-container" class="mt-6 space-y-6">
+        
+        <!-- Auth Reminder (if guest) -->
+        <div id="checkout-guest-notice" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between">
+          <div class="flex items-center space-x-3 text-xs text-amber-900">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600 flex-shrink-0"></i>
+            <span>Signed in as Guest. Sign in to save addresses and track in your account.</span>
+          </div>
+          <button onclick="openAuthModal()" class="text-xs font-bold text-amber-700 hover:text-amber-900 underline whitespace-nowrap ml-2">
+            Sign In Now
+          </button>
+        </div>
+
+        <!-- Address Form -->
+        <form id="shipping-form" onsubmit="handlePlaceOrder(event)" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+              <input type="text" id="ship-name" required placeholder="e.g. Vikram Sharma" 
+                     class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Mobile Phone *</label>
+              <input type="tel" id="ship-phone" required placeholder="+91 98765 43210" 
+                     class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Street Address (Line 1) *</label>
+            <input type="text" id="ship-line1" required placeholder="Flat 402, Ganga Heights, Boring Road" 
+                   class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">City *</label>
+              <input type="text" id="ship-city" required value="Patna" 
+                     class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">State *</label>
+              <input type="text" id="ship-state" required value="Bihar" 
+                     class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Postal Code *</label>
+              <input type="text" id="ship-pincode" required value="800001" 
+                     class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+            </div>
+          </div>
+
+          <!-- Payment Simulation Info -->
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                <i data-lucide="credit-card" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <span class="block text-xs font-bold text-slate-900">Instant Mock Payment Gateway</span>
+                <span class="text-[11px] text-slate-500">Auto-approved transaction simulation on placement</span>
+              </div>
+            </div>
+            <span class="text-xs font-bold px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">Test Enabled</span>
+          </div>
+
+          <!-- Order Summary Pill -->
+          <div class="bg-amber-50/60 border border-amber-100 rounded-2xl p-4 flex items-center justify-between text-xs font-bold">
+            <span class="text-slate-700">Total Payable Amount:</span>
+            <span id="checkout-total-display" class="text-lg text-amber-700 font-extrabold">₹0.00</span>
+          </div>
+
+          <!-- Submit Order Button -->
+          <button type="submit" id="place-order-btn" 
+                  class="w-full py-4 bg-slate-900 hover:bg-amber-600 text-white font-extrabold text-sm rounded-2xl shadow-xl transition-all flex items-center justify-center space-x-2">
+            <i data-lucide="lock" class="w-4 h-4"></i>
+            <span>Confirm Order & Pay</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Order Confirmation Screen (Hidden Initially) -->
+      <div id="checkout-confirmation-container" class="mt-6 text-center space-y-6 hidden">
+        <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto animate-bounce">
+          <i data-lucide="check" class="w-8 h-8 stroke-[3]"></i>
+        </div>
+        <div>
+          <span class="text-xs font-bold text-emerald-600 uppercase tracking-widest">Order Confirmed & Paid</span>
+          <h3 class="text-3xl font-black text-slate-900 mt-1">Thank You for Your Order!</h3>
+          <p class="text-sm text-slate-600 mt-2">Your payment has been verified and stock is atomically reserved.</p>
+        </div>
+
+        <div class="max-w-md mx-auto bg-slate-50 border border-slate-200 rounded-2xl p-6 text-left space-y-3 text-xs">
+          <div class="flex justify-between pb-2 border-b border-slate-200">
+            <span class="text-slate-500 font-medium">Order Number:</span>
+            <span id="confirmed-order-number" class="font-extrabold text-slate-900 font-mono text-sm">MC-2026-XXXXX</span>
+          </div>
+          <div class="flex justify-between pb-2 border-b border-slate-200">
+            <span class="text-slate-500 font-medium">Payment Status:</span>
+            <span class="font-bold text-emerald-600 flex items-center space-x-1">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+              <span>PAID (Gateway Verified)</span>
+            </span>
+          </div>
+          <div class="flex justify-between pb-2 border-b border-slate-200">
+            <span class="text-slate-500 font-medium">Delivery Destination:</span>
+            <span id="confirmed-order-address" class="font-medium text-slate-800 text-right">Patna, Bihar</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500 font-medium">Total Charged:</span>
+            <span id="confirmed-order-total" class="font-extrabold text-slate-900 text-sm">₹0.00</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+          <button id="direct-track-btn" onclick="switchToTrackingFromCheckout()" 
+                  class="px-6 py-3.5 bg-amber-600 hover:bg-amber-700 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2">
+            <i data-lucide="truck" class="w-4 h-4"></i>
+            <span>Track Live Delivery Status</span>
+          </button>
+          <button onclick="closeCheckoutModal()" 
+                  class="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all">
+            Continue Shopping
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 3. LIVE ORDER TRACKING MODAL & STEPPER -->
+  <!-- ========================================================================= -->
+  <div id="tracking-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeTrackingModal()"></div>
+    
+    <div class="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-100 z-10 p-6 sm:p-8">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+            <i data-lucide="truck" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-extrabold text-slate-900">Real-Time Delivery Stepper</h2>
+            <p class="text-xs text-slate-500">Live multi-carrier logistics timeline & verification checkpoints</p>
+          </div>
+        </div>
+        <button onclick="closeTrackingModal()" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Tracking Query Input -->
+      <div class="mt-6">
+        <div class="flex gap-2">
+          <input type="text" id="track-order-input" placeholder="Enter Order # (e.g. MC-2026-98124)" 
+                 class="flex-grow px-4 py-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600 font-mono uppercase" />
+          <button onclick="handleTrackSearch()" 
+                  id="track-search-btn"
+                  class="px-6 py-3 bg-slate-900 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition-all shadow-sm">
+            Track
+          </button>
+        </div>
+      </div>
+
+      <!-- Stepper & Timeline Display Container -->
+      <div id="tracking-result-container" class="mt-6 hidden">
+        <!-- Rendered dynamically by renderTrackingTimeline() -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 4. AUTH MODAL (LOGIN / REGISTER) -->
+  <!-- ========================================================================= -->
+  <div id="auth-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeAuthModal()"></div>
+    
+    <div class="relative bg-white rounded-3xl shadow-2xl max-w-md w-full border border-slate-100 z-10 p-6 sm:p-8">
+      
+      <!-- Close Button -->
+      <button onclick="closeAuthModal()" class="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="text-center mb-6">
+        <img src="/assets/brands/mito_crunch/brand/logo_crunch.svg" alt="Mito Crunch Logo" class="h-8 mx-auto mb-3" />
+        <h3 class="text-xl font-extrabold text-slate-900">Welcome to Mito Crunch</h3>
+        <p class="text-xs text-slate-500 mt-1">Tenant-isolated authentication & customer profile gate</p>
+      </div>
+
+      <!-- Tabs Navigation -->
+      <div class="flex border-b border-slate-100 mb-6">
+        <button id="auth-tab-login" onclick="switchAuthTab('login')" 
+                class="flex-1 pb-3 text-xs font-bold border-b-2 border-amber-600 text-amber-600 transition-colors">
+          Sign In
+        </button>
+        <button id="auth-tab-register" onclick="switchAuthTab('register')" 
+                class="flex-1 pb-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-700 transition-colors">
+          Create Account
+        </button>
+      </div>
+
+      <!-- Login Form -->
+      <div id="auth-panel-login" class="space-y-4">
+        <!-- Demo Quick-Fill Buttons -->
+        <div class="bg-amber-50/70 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-900 flex items-center justify-between">
+          <span class="font-semibold">Quick Demo Credentials:</span>
+          <button onclick="fillDemoCredentials('customer')" class="px-2 py-1 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700">
+            Fill Customer
+          </button>
+        </div>
+
+        <form onsubmit="handleLogin(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+            <input type="email" id="login-email" required placeholder="customer@mitocrunch.com" 
+                   class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+            <input type="password" id="login-password" required placeholder="••••••••" 
+                   class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+          </div>
+          <button type="submit" id="login-submit-btn" 
+                  class="w-full py-3.5 bg-slate-900 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2">
+            <span>Sign In to Storefront</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Register Form -->
+      <div id="auth-panel-register" class="space-y-4 hidden">
+        <form onsubmit="handleRegister(event)" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">First Name</label>
+              <input type="text" id="reg-firstname" required placeholder="Vikram" 
+                     class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Last Name</label>
+              <input type="text" id="reg-lastname" required placeholder="Kumar" 
+                     class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+            <input type="email" id="reg-email" required placeholder="new.customer@gmail.com" 
+                   class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
+            <input type="tel" id="reg-phone" required placeholder="+91 98765 43210" 
+                   class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+            <input type="password" id="reg-password" required placeholder="••••••••" 
+                   class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
+          </div>
+          <button type="submit" id="reg-submit-btn" 
+                  class="w-full py-3.5 bg-slate-900 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2">
+            <span>Create Account & Merge Cart</span>
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 pointer-events-none">
+    <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+    <span id="toast-msg" class="text-xs font-semibold">Action completed successfully</span>
+  </div>
+
+  <!-- Load Client State Manager -->
+  <script src="/assets/js/store.js"></script>
+
+  <!-- SDUI & Frontend Reactive Controller -->
   <script>
-    // Global Cart State
-    let cartCount = 0;
-    function addToCart(productName) {
-      cartCount++;
-      document.getElementById('cart-count').innerText = cartCount;
+    // Toast Utility
+    function showToast(msg, isSuccess = true) {
       const toast = document.getElementById('toast');
-      document.getElementById('toast-msg').innerText = `Added "${productName}" to Cart!`;
+      const msgEl = document.getElementById('toast-msg');
+      msgEl.innerText = msg;
       toast.classList.remove('translate-y-24', 'opacity-0');
       toast.classList.add('translate-y-0', 'opacity-100');
       setTimeout(() => {
         toast.classList.remove('translate-y-0', 'opacity-100');
         toast.classList.add('translate-y-24', 'opacity-0');
-      }, 2500);
+      }, 3000);
+    }
+
+    // Modal & Drawer Controllers
+    function openCartDrawer() {
+      const container = document.getElementById('cart-drawer-container');
+      const backdrop = document.getElementById('cart-backdrop');
+      const panel = document.getElementById('cart-panel');
+      container.classList.remove('pointer-events-none');
+      backdrop.classList.remove('opacity-0', 'pointer-events-none');
+      backdrop.classList.add('opacity-100');
+      panel.classList.remove('translate-x-full');
+      renderCartDrawer();
+    }
+
+    function closeCartDrawer() {
+      const container = document.getElementById('cart-drawer-container');
+      const backdrop = document.getElementById('cart-backdrop');
+      const panel = document.getElementById('cart-panel');
+      backdrop.classList.remove('opacity-100');
+      backdrop.classList.add('opacity-0', 'pointer-events-none');
+      panel.classList.add('translate-x-full');
+      setTimeout(() => container.classList.add('pointer-events-none'), 300);
+    }
+
+    function openAuthModal() {
+      document.getElementById('auth-modal').classList.remove('hidden');
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    function switchAuthTab(tab) {
+      const loginTab = document.getElementById('auth-tab-login');
+      const regTab = document.getElementById('auth-tab-register');
+      const loginPanel = document.getElementById('auth-panel-login');
+      const regPanel = document.getElementById('auth-panel-register');
+      if (tab === 'login') {
+        loginTab.className = "flex-1 pb-3 text-xs font-bold border-b-2 border-amber-600 text-amber-600 transition-colors";
+        regTab.className = "flex-1 pb-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-700 transition-colors";
+        loginPanel.classList.remove('hidden');
+        regPanel.classList.add('hidden');
+      } else {
+        regTab.className = "flex-1 pb-3 text-xs font-bold border-b-2 border-amber-600 text-amber-600 transition-colors";
+        loginTab.className = "flex-1 pb-3 text-xs font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-700 transition-colors";
+        regPanel.classList.remove('hidden');
+        loginPanel.classList.add('hidden');
+      }
+    }
+
+    function fillDemoCredentials(role) {
+      if (role === 'customer') {
+        document.getElementById('login-email').value = 'customer@mitocrunch.com';
+        document.getElementById('login-password').value = 'Customer@2026';
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const pwd = document.getElementById('login-password').value;
+      const btn = document.getElementById('login-submit-btn');
+      btn.disabled = true;
+      btn.innerText = 'Authenticating...';
+      try {
+        await store.login(email, pwd);
+        showToast('Signed in successfully!');
+        closeAuthModal();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Sign In to Storefront';
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const fn = document.getElementById('reg-firstname').value;
+      const ln = document.getElementById('reg-lastname').value;
+      const email = document.getElementById('reg-email').value;
+      const phone = document.getElementById('reg-phone').value;
+      const pwd = document.getElementById('reg-password').value;
+      const btn = document.getElementById('reg-submit-btn');
+      btn.disabled = true;
+      btn.innerText = 'Creating Profile...';
+      try {
+        await store.register(fn, ln, email, phone, pwd);
+        showToast('Account created and logged in!');
+        closeAuthModal();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Create Account & Merge Cart';
+      }
+    }
+
+    function renderHeaderAuth() {
+      const container = document.getElementById('auth-header-container');
+      if (store.isAuthenticated()) {
+        const user = store.userProfile || {};
+        const displayName = user.firstName || 'Customer';
+        container.innerHTML = `
+          <div class="flex items-center space-x-2 bg-slate-100 pl-3 pr-2 py-1 rounded-xl border border-slate-200">
+            <span class="text-xs font-bold text-slate-800">Hi, ${displayName}</span>
+            <button onclick="store.logout()" title="Sign Out" 
+                    class="p-1 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-lg transition-colors">
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <button id="auth-btn" onclick="openAuthModal()" 
+                  class="flex items-center space-x-2 px-3.5 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition-all">
+            <i data-lucide="user" class="w-4 h-4 text-slate-600"></i>
+            <span>Sign In</span>
+          </button>
+        `;
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function renderCartBadge() {
+      const count = store.getCartCount();
+      const badge = document.getElementById('cart-badge');
+      badge.innerText = count;
+      badge.classList.remove('scale-100');
+      badge.classList.add('scale-125');
+      setTimeout(() => {
+        badge.classList.remove('scale-125');
+        badge.classList.add('scale-100');
+      }, 200);
+    }
+
+    function renderCartDrawer() {
+      const listEl = document.getElementById('cart-items-list');
+      const countEl = document.getElementById('drawer-item-count');
+      const items = (store.cart && store.cart.items) || [];
+      countEl.innerText = `${store.getCartCount()} items`;
+
+      if (items.length === 0) {
+        listEl.innerHTML = `
+          <div class="text-center py-16 space-y-4">
+            <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+              <i data-lucide="shopping-bag" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-base font-bold text-slate-800">Your bag is empty</h3>
+            <p class="text-xs text-slate-500 max-w-xs mx-auto">Explore our crunchy, artisanal roasted makhana flavors and add them to your cart.</p>
+            <button onclick="closeCartDrawer()" class="px-5 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-amber-600 transition-all">
+              Start Shopping
+            </button>
+          </div>
+        `;
+        document.getElementById('checkout-action-btn').disabled = true;
+        document.getElementById('checkout-action-btn').classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        document.getElementById('checkout-action-btn').disabled = false;
+        document.getElementById('checkout-action-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+
+        listEl.innerHTML = items.map(item => `
+          <div class="flex items-center space-x-3 p-3 bg-white rounded-2xl border border-slate-100 shadow-sm hover:border-amber-200 transition-colors">
+            <img src="${item.productImageUrl || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
+                 alt="${item.productName || 'Makhana'}" 
+                 class="w-16 h-16 object-cover rounded-xl bg-slate-50 border border-slate-100 flex-shrink-0" />
+            <div class="flex-grow min-w-0">
+              <h4 class="text-xs font-bold text-slate-900 truncate">${item.productName || 'Makhana'}</h4>
+              <p class="text-[11px] text-slate-400">${item.variantSku || ''}</p>
+              <div class="text-xs font-extrabold text-amber-600 mt-1">₹${Number(item.unitPrice || 0).toFixed(2)}</div>
+            </div>
+            <!-- Quantity Controls -->
+            <div class="flex items-center space-x-1 bg-slate-100 rounded-xl p-1">
+              <button onclick="store.updateItemQuantity('${item.id}', ${item.quantity - 1})" 
+                      class="w-6 h-6 flex items-center justify-center bg-white rounded-lg text-slate-700 hover:bg-amber-100 hover:text-amber-800 transition-colors font-bold text-xs shadow-sm">
+                -
+              </button>
+              <span class="w-6 text-center text-xs font-extrabold text-slate-900">${item.quantity}</span>
+              <button onclick="store.updateItemQuantity('${item.id}', ${item.quantity + 1})" 
+                      class="w-6 h-6 flex items-center justify-center bg-white rounded-lg text-slate-700 hover:bg-amber-100 hover:text-amber-800 transition-colors font-bold text-xs shadow-sm">
+                +
+              </button>
+            </div>
+            <button onclick="store.removeItem('${item.id}')" 
+                    title="Remove item" 
+                    class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `).join('');
+      }
+
+      // Financial Breakdown
+      const calc = store.getCartPayable();
+      document.getElementById('cart-subtotal').innerText = `₹${calc.subtotal.toFixed(2)}`;
+      
+      const discRow = document.getElementById('cart-discount-row');
+      if (calc.discount > 0) {
+        discRow.classList.remove('hidden');
+        document.getElementById('cart-discount').innerText = `-₹${calc.discount.toFixed(2)}`;
+      } else {
+        discRow.classList.add('hidden');
+      }
+
+      document.getElementById('cart-shipping').innerText = calc.shipping === 0 ? 'FREE' : `₹${calc.shipping.toFixed(2)}`;
+      document.getElementById('cart-total').innerText = `₹${calc.total.toFixed(2)}`;
+
+      // Coupon Badge
+      const couponBadge = document.getElementById('coupon-badge-container');
+      if (store.appliedCoupon) {
+        couponBadge.classList.remove('hidden');
+        couponBadge.innerHTML = `
+          <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold">
+            <div class="flex items-center space-x-1.5">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
+              <span>Coupon <strong>${store.appliedCoupon.code}</strong> applied (₹${store.appliedCoupon.discountAmount} saved)</span>
+            </div>
+            <button onclick="store.removeCoupon()" class="text-rose-600 hover:underline font-bold text-[11px] ml-2">Remove</button>
+          </div>
+        `;
+      } else {
+        couponBadge.classList.add('hidden');
+      }
+
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    async function handleApplyCoupon() {
+      const input = document.getElementById('coupon-input');
+      const code = (input.value || '').trim();
+      if (!code) {
+        alert('Please enter a coupon code (e.g. CRUNCH20)');
+        return;
+      }
+      const btn = document.getElementById('coupon-apply-btn');
+      btn.disabled = true;
+      btn.innerText = '...';
+      try {
+        const res = await store.applyCoupon(code);
+        showToast(`Coupon ${code} applied successfully!`);
+        input.value = '';
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Apply';
+      }
+    }
+
+    // Checkout Flow
+    function proceedToCheckout() {
+      if (store.getCartCount() === 0) {
+        alert('Your cart is empty');
+        return;
+      }
+      closeCartDrawer();
+      openCheckoutModal();
+    }
+
+    function openCheckoutModal() {
+      const modal = document.getElementById('checkout-modal');
+      modal.classList.remove('hidden');
+      document.getElementById('checkout-form-container').classList.remove('hidden');
+      document.getElementById('checkout-confirmation-container').classList.add('hidden');
+
+      const calc = store.getCartPayable();
+      document.getElementById('checkout-total-display').innerText = `₹${calc.total.toFixed(2)}`;
+
+      const guestNotice = document.getElementById('checkout-guest-notice');
+      if (!store.isAuthenticated()) {
+        guestNotice.classList.remove('hidden');
+      } else {
+        guestNotice.classList.add('hidden');
+        // Pre-fill profile
+        const u = store.userProfile;
+        if (u) {
+          document.getElementById('ship-name').value = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+        }
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeCheckoutModal() {
+      document.getElementById('checkout-modal').classList.add('hidden');
+    }
+
+    let lastCreatedOrder = null;
+
+    async function handlePlaceOrder(e) {
+      e.preventDefault();
+      
+      // If user is guest, auto-login customer for seamless authenticated order placement
+      if (!store.isAuthenticated()) {
+        try {
+          await store.login('customer@mitocrunch.com', 'Customer@2026');
+        } catch (authErr) {
+          alert('Please sign in to place your order.');
+          openAuthModal();
+          return;
+        }
+      }
+
+      const shippingAddress = {
+        name: document.getElementById('ship-name').value,
+        phone: document.getElementById('ship-phone').value,
+        line1: document.getElementById('ship-line1').value,
+        city: document.getElementById('ship-city').value,
+        state: document.getElementById('ship-state').value,
+        pincode: document.getElementById('ship-pincode').value
+      };
+
+      const btn = document.getElementById('place-order-btn');
+      btn.disabled = true;
+      btn.innerText = 'Reserving Stock & Placing Order...';
+
+      try {
+        const order = await store.checkout(shippingAddress);
+        lastCreatedOrder = order;
+
+        // Transition to confirmation screen
+        document.getElementById('checkout-form-container').classList.add('hidden');
+        const confirmEl = document.getElementById('checkout-confirmation-container');
+        confirmEl.classList.remove('hidden');
+
+        document.getElementById('confirmed-order-number').innerText = order.orderNumber;
+        document.getElementById('confirmed-order-address').innerText = `${shippingAddress.city}, ${shippingAddress.state} (${shippingAddress.pincode})`;
+        document.getElementById('confirmed-order-total').innerText = `₹${Number(order.totalAmount || 0).toFixed(2)}`;
+
+        showToast(`Order ${order.orderNumber} successfully placed!`);
+      } catch (err) {
+        alert('Order placement error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="lock" class="w-4 h-4"></i><span>Confirm Order & Pay</span>`;
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+
+    function switchToTrackingFromCheckout() {
+      const orderNum = lastCreatedOrder ? lastCreatedOrder.orderNumber : '';
+      closeCheckoutModal();
+      openTrackingModal(orderNum);
+    }
+
+    // Live Tracking Flow
+    function openTrackingModal(orderNumber = '') {
+      document.getElementById('tracking-modal').classList.remove('hidden');
+      if (orderNumber) {
+        document.getElementById('track-order-input').value = orderNumber;
+        handleTrackSearch();
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeTrackingModal() {
+      document.getElementById('tracking-modal').classList.add('hidden');
+    }
+
+    async function handleTrackSearch() {
+      const input = document.getElementById('track-order-input');
+      const orderNum = (input.value || '').trim();
+      if (!orderNum) {
+        alert('Please enter an order number');
+        return;
+      }
+
+      const btn = document.getElementById('track-search-btn');
+      btn.disabled = true;
+      btn.innerText = 'Searching...';
+
+      try {
+        const tracking = await store.trackOrder(orderNum);
+        renderTrackingTimeline(tracking);
+      } catch (err) {
+        renderTrackingError(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Track';
+      }
+    }
+
+    function renderTrackingTimeline(data) {
+      const container = document.getElementById('tracking-result-container');
+      container.classList.remove('hidden');
+
+      const stages = [
+        { key: 'ORDER_PLACED', label: 'Placed', icon: 'file-text' },
+        { key: 'PROCESSING', label: 'Processing', icon: 'package' },
+        { key: 'SHIPPED', label: 'Dispatched', icon: 'truck' },
+        { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: 'navigation' },
+        { key: 'DELIVERED', label: 'Delivered', icon: 'check-circle' }
+      ];
+
+      const statusIndexMap = {
+        'PENDING_PAYMENT': 0,
+        'PAID': 1,
+        'PROCESSING': 1,
+        'SHIPPED': 2,
+        'IN_TRANSIT': 2,
+        'OUT_FOR_DELIVERY': 3,
+        'DELIVERED': 4
+      };
+
+      const currentStageIdx = statusIndexMap[data.currentStatus] !== undefined ? statusIndexMap[data.currentStatus] : 1;
+
+      container.innerHTML = `
+        <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200/80 space-y-6">
+          
+          <!-- Stepper Header Details -->
+          <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200">
+            <div>
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tracking Order</span>
+              <h4 class="text-lg font-black text-slate-900 font-mono">${data.orderNumber}</h4>
+            </div>
+            <div class="text-right">
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                ${data.currentStatus}
+              </span>
+              <div class="text-[11px] text-slate-500 mt-1">Carrier: <strong>${data.carrierType || 'Direct Logistics'}</strong></div>
+            </div>
+          </div>
+
+          <!-- 5-Stage Visual Stepper -->
+          <div class="py-2">
+            <div class="flex items-center justify-between relative">
+              
+              <!-- Background Bar -->
+              <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-slate-200 z-0"></div>
+              
+              ${stages.map((stage, idx) => {
+                const isPassed = idx <= currentStageIdx;
+                const isCurrent = idx === currentStageIdx;
+                return `
+                  <div class="relative z-10 flex flex-col items-center">
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-sm
+                                ${isPassed ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'} 
+                                ${isCurrent ? 'ring-4 ring-emerald-200 scale-110' : ''}">
+                      <i data-lucide="${stage.icon}" class="w-4 h-4"></i>
+                    </div>
+                    <span class="text-[11px] font-bold mt-2 text-center whitespace-nowrap
+                                 ${isPassed ? 'text-slate-900' : 'text-slate-400'}">
+                      ${stage.label}
+                    </span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Courier / Rider Info -->
+          ${data.carrierType ? `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white p-4 rounded-xl border border-slate-200">
+              <div>
+                <span class="text-slate-400 block">AWB / Tracking Number</span>
+                <span class="font-mono font-bold text-slate-800">${data.trackingNumber || 'SF-MTO-8871'}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block">Estimated Delivery</span>
+                <span class="font-bold text-slate-800">${data.estimatedDelivery ? new Date(data.estimatedDelivery).toLocaleDateString() : 'Next Business Day'}</span>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Chronological Checkpoints -->
+          <div>
+            <h5 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Live Checkpoints</h5>
+            <div class="space-y-3">
+              ${(data.checkpoints && data.checkpoints.length > 0) ? data.checkpoints.map((cp, idx) => `
+                <div class="flex items-start space-x-3 text-xs">
+                  <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></div>
+                  <div class="flex-grow">
+                    <div class="font-bold text-slate-900">${cp.locationHub || 'PATNA_CENTRAL_HUB'} - ${cp.status}</div>
+                    <div class="text-[11px] text-slate-500">${cp.description || 'Processed and updated in hub'}</div>
+                  </div>
+                  <div class="text-[10px] text-slate-400 font-mono">${new Date(cp.timestamp || Date.now()).toLocaleTimeString()}</div>
+                </div>
+              `).join('') : `
+                <div class="text-xs text-slate-500 italic p-3 bg-white rounded-xl border border-slate-200">
+                  Order placed and verified. Shipment routing in progress with fulfillment center.
+                </div>
+              `}
+            </div>
+          </div>
+
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function renderTrackingError(errMsg) {
+      const container = document.getElementById('tracking-result-container');
+      container.classList.remove('hidden');
+      container.innerHTML = `
+        <div class="bg-rose-50 border border-rose-200 rounded-2xl p-5 text-center text-xs text-rose-800 space-y-2">
+          <i data-lucide="alert-triangle" class="w-6 h-6 text-rose-500 mx-auto"></i>
+          <p class="font-bold">${errMsg}</p>
+          <p class="text-slate-500">Please verify the order number (e.g. from your confirmation screen) and try again.</p>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    // Interactive Add-To-Cart Action from Product Cards
+    const PRE_SEEDED_VARIANTS = {
+      'Peri Peri Crunch': 'f1000000-0000-0000-0000-000000000001',
+      'Himalayan Pink Salt': 'f1000000-0000-0000-0000-000000000003',
+      'Mint Magic': 'f1000000-0000-0000-0000-000000000004'
+    };
+
+    async function handleAddToCart(buttonEl, productName) {
+      const variantId = PRE_SEEDED_VARIANTS[productName] || 'f1000000-0000-0000-0000-000000000001';
+      
+      const originalHtml = buttonEl.innerHTML;
+      buttonEl.disabled = true;
+      buttonEl.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-white inline" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Adding...</span>
+      `;
+
+      try {
+        await store.addToCart(variantId, 1);
+        buttonEl.innerHTML = `
+          <i data-lucide="check" class="w-3.5 h-3.5 inline"></i>
+          <span>Added!</span>
+        `;
+        buttonEl.classList.remove('bg-slate-900');
+        buttonEl.classList.add('bg-emerald-600');
+        showToast(`Added "${productName}" to Cart!`);
+
+        setTimeout(() => {
+          buttonEl.innerHTML = originalHtml;
+          buttonEl.classList.remove('bg-emerald-600');
+          buttonEl.classList.add('bg-slate-900');
+          buttonEl.disabled = false;
+          if (window.lucide) window.lucide.createIcons();
+        }, 1500);
+
+      } catch (err) {
+        alert('Cart Error: ' + err.message);
+        buttonEl.innerHTML = originalHtml;
+        buttonEl.disabled = false;
+      }
     }
 
     // SDUI Component Registry
@@ -149,7 +1105,7 @@
               <span>${payload.text}</span>
             </div>
             <button onclick="document.getElementById('section-${sectionId}').remove()" class="absolute right-4 p-1 hover:opacity-75 focus:outline-none" aria-label="Dismiss">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              <i data-lucide="x" class="w-4 h-4"></i>
             </button>
           </div>
         `;
@@ -159,10 +1115,10 @@
       HERO_CAROUSEL: function(payload, sectionId) {
         const slides = payload.slides || [];
         if (!slides.length) return '';
-        const slide = slides[0]; // Primary responsive slide
+        const slide = slides[0];
         return `
           <section class="relative bg-slate-950 overflow-hidden text-white">
-            <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 flex flex-col lg:flex-row items-center justify-between gap-12 z-10">
+            <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 flex flex-col lg:flex-row items-center justify-between gap-12 z-10">
               <div class="max-w-xl text-center lg:text-left space-y-6">
                 <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-semibold uppercase tracking-wider">
                   <span class="w-2 h-2 rounded-full bg-amber-400"></span>
@@ -175,15 +1131,15 @@
                   ${slide.subtitle}
                 </p>
                 <div class="pt-4 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-                  <a href="${slide.ctaLink || '#featured'}" 
-                     class="w-full sm:w-auto px-8 py-4 text-slate-950 font-bold rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all text-center group flex items-center justify-center space-x-2"
-                     style="background-color: var(--color-primary, #D97706); border-radius: var(--border-radius);">
+                  <a href="#featured" 
+                     class="w-full sm:w-auto px-8 py-4 text-slate-950 font-extrabold rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all text-center flex items-center justify-center space-x-2 bg-amber-500 hover:bg-amber-400">
                     <span>${slide.ctaText || 'Shop Collection'}</span>
-                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
                   </a>
-                  <a href="#story" class="w-full sm:w-auto px-6 py-4 text-white font-semibold rounded-xl border border-slate-700 hover:bg-slate-800/60 transition-colors text-center">
-                    Explore Origins
-                  </a>
+                  <button onclick="openTrackingModal()" class="w-full sm:w-auto px-6 py-4 text-white font-semibold rounded-xl border border-slate-700 hover:bg-slate-800/60 transition-colors flex items-center justify-center space-x-2">
+                    <i data-lucide="truck" class="w-4 h-4 text-amber-500"></i>
+                    <span>Track Active Order</span>
+                  </button>
                 </div>
               </div>
               <div class="w-full lg:max-w-lg relative group">
@@ -193,7 +1149,6 @@
                 </div>
               </div>
             </div>
-            <!-- Decorative Subtle Wave Divider -->
             <div class="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#FAFAFA] to-transparent"></div>
           </section>
         `;
@@ -225,14 +1180,14 @@
                   <div class="p-6 flex flex-col flex-grow justify-between space-y-4">
                     <div>
                       <h3 class="text-xl font-bold text-slate-900 group-hover:text-amber-600 transition-colors">${item.name}</h3>
-                      <p class="text-xs text-slate-500 mt-1">70g Pouch | 100% Organic Foxnuts | 0% Trans Fat</p>
+                      <p class="text-xs text-slate-500 mt-1">100g Jumbo Pack | 100% Organic Foxnuts | 0% Trans Fat</p>
                     </div>
                     <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-                      <div class="flex items-baseline space-x-1">
-                        <span class="text-2xl font-black text-slate-900">₹199</span>
-                        <span class="text-xs text-slate-400 line-through">₹249</span>
+                      <div class="flex items-baseline space-x-1.5">
+                        <span class="text-2xl font-black text-slate-900">₹149</span>
+                        <span class="text-xs text-slate-400 line-through">₹199</span>
                       </div>
-                      <button onclick="addToCart('${item.name}')" 
+                      <button onclick="handleAddToCart(this, '${item.name}')" 
                               class="px-4 py-2.5 bg-slate-900 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm active:scale-95">
                         <i data-lucide="plus" class="w-4 h-4"></i>
                         <span>Add to Cart</span>
@@ -319,7 +1274,7 @@
               <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
                 <span>&copy; ${new Date().getFullYear()} Mito Crunch. All rights reserved.</span>
                 <span class="flex items-center space-x-1">
-                  <span>Engineered with 30-Year High-Availability Standards</span>
+                  <span>Phase 8 Interactive Client Certified</span>
                 </span>
               </div>
             </div>
@@ -330,7 +1285,7 @@
 
     // SDUI Dynamic Orchestrator
     async function initSDUI() {
-      const tenantId = 'mito_crunch';
+      const tenantId = store.activeTenant;
       try {
         const response = await fetch('/api/v1/cms/pages/home', {
           headers: {
@@ -349,22 +1304,6 @@
         }
 
         const { pageSlug, title, seo, theme, sections } = resData.data;
-
-        // Apply dynamic brand theme tokens to document CSS variables
-        if (theme && theme.tokens) {
-          if (theme.tokens.primaryColor) {
-            document.documentElement.style.setProperty('--color-primary', theme.tokens.primaryColor);
-          }
-          if (theme.tokens.fontHeadings) {
-            document.documentElement.style.setProperty('--font-heading', theme.tokens.fontHeadings);
-          }
-          if (theme.tokens.fontBody) {
-            document.documentElement.style.setProperty('--font-body', theme.tokens.fontBody);
-          }
-          if (theme.tokens.borderRadiusPx) {
-            document.documentElement.style.setProperty('--border-radius', `${theme.tokens.borderRadiusPx}px`);
-          }
-        }
 
         // Apply SEO metadata
         if (seo && seo.metaTitle) {
@@ -387,40 +1326,39 @@
           const renderer = ComponentRegistry[sec.componentType];
           if (renderer) {
             renderedHtml += renderer(sec.contentPayload, sec.sectionId);
-          } else {
-            console.warn('Unknown SDUI component type:', sec.componentType);
           }
         }
 
         const rootEl = document.getElementById('sdui-root');
         rootEl.innerHTML = renderedHtml;
 
-        // Re-initialize lucide icons for dynamically added elements
-        if (window.lucide) {
-          window.lucide.createIcons();
-        }
-
       } catch (err) {
         console.error('SDUI Bootstrapping error:', err);
-        document.getElementById('sdui-root').innerHTML = `
-          <div class="max-w-xl mx-auto my-20 p-8 bg-white border border-rose-200 rounded-2xl text-center shadow-lg">
-            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            </div>
-            <h2 class="text-xl font-bold text-slate-900">Failed to render Server-Driven UI</h2>
-            <p class="text-sm text-slate-600 mt-2">${err.message}</p>
-            <button onclick="location.reload()" class="mt-6 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800">Retry Connection</button>
-          </div>
-        `;
+      } finally {
+        if (window.lucide) window.lucide.createIcons();
       }
     }
 
-    // Initialize once DOM is ready
-    window.addEventListener('DOMContentLoaded', () => {
-      initSDUI();
-      if (window.lucide) {
-        window.lucide.createIcons();
-      }
+    // Initialize Store Subscriptions & Bootstrapping
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Subscribe to reactive store events
+      store.subscribe((event, data) => {
+        if (event === 'AUTH_CHANGED') {
+          renderHeaderAuth();
+        } else if (event === 'CART_UPDATED' || event === 'COUPON_APPLIED' || event === 'COUPON_REMOVED') {
+          renderCartBadge();
+          renderCartDrawer();
+        }
+      });
+
+      // Render initial header states
+      renderHeaderAuth();
+      renderCartBadge();
+
+      // Bootstrap SDUI and fetch existing cart
+      await initSDUI();
+      await store.fetchCart();
+      renderCartBadge();
     });
   </script>
 </body>

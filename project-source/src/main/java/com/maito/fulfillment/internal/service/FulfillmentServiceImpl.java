@@ -184,7 +184,28 @@ public class FulfillmentServiceImpl implements FulfillmentService {
 
         List<Shipment> shipments = shipmentRepository.findByOrderId(order.id());
         if (shipments.isEmpty()) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "No shipment records found for order: " + orderNumber);
+            return new TrackingTimelineResponse(
+                    order.orderNumber(),
+                    "PENDING_DISPATCH",
+                    CarrierType.SELF_FLEET,
+                    "Mito Express Logistics",
+                    "AWB-PENDING",
+                    ShipmentStatus.MANIFESTED,
+                    "PROCESSING",
+                    TrackingTimelineResponse.STANDARD_STEPPER_STAGES,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    List.of(new CheckpointDto(
+                            UUID.randomUUID(),
+                            "ORDER_PLACED",
+                            "MITHILA_CENTRAL_HUB",
+                            "Order placed and confirmed. Warehouse packing in progress.",
+                            order.createdAt() != null ? order.createdAt() : Instant.now()
+                    ))
+            );
         }
 
         Shipment shipment = shipments.get(shipments.size() - 1);

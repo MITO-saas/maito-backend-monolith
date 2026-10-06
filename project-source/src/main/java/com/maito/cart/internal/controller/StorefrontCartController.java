@@ -41,10 +41,7 @@ public class StorefrontCartController {
             @RequestParam(required = false, defaultValue = "INR") String currency,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        if (principal == null || principal.getProfileId() == null) {
-            throw new com.maito.shared.exception.BusinessException(com.maito.shared.exception.ErrorCode.ACCESS_DENIED, "Customer login required for cart merge");
-        }
-        UUID customerProfileId = principal.getProfileId();
+        UUID customerProfileId = (principal != null) ? principal.getProfileId() : null;
         CartResponse response = cartService.getOrCreateCart(guestCartId, customerProfileId, currency);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
@@ -101,3 +98,4 @@ public class StorefrontCartController {
         return ResponseEntity.ok(ApiResponse.ok(merged));
     }
 }
+
