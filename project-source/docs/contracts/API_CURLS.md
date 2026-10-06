@@ -1101,3 +1101,93 @@ curl -X POST "http://localhost:8080/api/v1/admin/b2b/pricing-tiers" \
     "isActive": true
   }'
 ```
+---
+
+## Phase 12: Production Infrastructure, Container Health Probes & Gateway Rate Limiting
+
+### 1. Actuator: General Application Health Check
+```bash
+curl -X GET "http://localhost:8080/actuator/health" \
+  -H "Accept: application/json"
+```
+
+**Expected Response (HTTP 200 OK):**
+```json
+{
+  "status": "UP"
+}
+```
+
+### 2. Actuator: Kubernetes Liveness Probe
+```bash
+curl -X GET "http://localhost:8080/actuator/health/liveness" \
+  -H "Accept: application/json"
+```
+
+**Expected Response (HTTP 200 OK):**
+```json
+{
+  "status": "UP"
+}
+```
+
+### 3. Actuator: Kubernetes Readiness Probe
+```bash
+curl -X GET "http://localhost:8080/actuator/health/readiness" \
+  -H "Accept: application/json"
+```
+
+**Expected Response (HTTP 200 OK):**
+```json
+{
+  "status": "UP"
+}
+```
+
+### 4. Gateway: Rate-Limited Auth Login Burst
+```bash
+curl -X POST "http://localhost:8080/api/v1/auth/login" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "customer@mitocrunch.com",
+    "password": "Password123!"
+  }'
+```
+
+**Rate-Limit Success Headers (HTTP 200 OK):**
+```
+X-RateLimit-Limit: 10
+X-RateLimit-Remaining: 9
+```
+
+**Rate-Limit Exceeded Response (HTTP 429 Too Many Requests):**
+```http
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/json;charset=UTF-8
+X-RateLimit-Limit: 10
+X-RateLimit-Remaining: 0
+Retry-After: 60
+```
+```json
+{
+  "success": false,
+  "error": {
+    "code": "GATEWAY_4290",
+    "message": "Too many requests. Rate limit exceeded"
+  }
+}
+```
+
+### 5. Edge Nginx: Subdomain Tenant Resolution (mitocrunch.maito.io)
+```bash
+curl -X GET "http://mitocrunch.maito.io/api/v1/catalog/products" \
+  -H "Host: mitocrunch.maito.io" \
+  -H "Accept: application/json"
+```
+
+### 6. Edge Nginx: Fallback Default Tenant Resolution
+```bash
+curl -X GET "http://localhost/api/v1/catalog/products" \
+  -H "Accept: application/json"
+```

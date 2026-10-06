@@ -38,6 +38,7 @@ public enum ErrorCode {
     B2B_INVOICE_NOT_FOUND("B2B_4041", "B2B invoice not found", HttpStatus.NOT_FOUND),
     B2B_INVOICE_ALREADY_PAID("B2B_4003", "B2B invoice is already paid", HttpStatus.BAD_REQUEST),
     INVALID_GSTIN("B2B_4004", "Invalid GSTIN format", HttpStatus.BAD_REQUEST),
+    RATE_LIMIT_EXCEEDED("GATEWAY_4290", "Too many requests. Rate limit exceeded", HttpStatus.TOO_MANY_REQUESTS),
     INTERNAL_SERVER_ERROR("MAITO_5000", "An unexpected internal server error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
