@@ -1,0 +1,21 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" fill="none">
+  <defs>
+    <linearGradient id="solarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </linearGradient>
+    <linearGradient id="sunGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(10, 10)">
+    <rect x="5" y="5" width="50" height="50" rx="8" fill="url(#solarGrad)"/>
+    <circle cx="30" cy="30" r="14" fill="url(#sunGrad)" opacity="0.95"/>
+    <line x1="12" y1="30" x2="48" y2="30" stroke="#FFFFFF" stroke-width="2" opacity="0.8"/>
+    <line x1="30" y1="12" x2="30" y2="48" stroke="#FFFFFF" stroke-width="2" opacity="0.8"/>
+  </g>
+  <text x="80" y="42" font-family="'Cabinet Grotesk', 'Outfit', sans-serif" font-size="28" font-weight="900" fill="#0F172A" letter-spacing="1.5">VIJIYA</text>
+  <text x="180" y="42" font-family="'Cabinet Grotesk', 'Outfit', sans-serif" font-size="28" font-weight="900" fill="#0284C7" letter-spacing="1.5">SOLAR</text>
+  <text x="82" y="60" font-family="'Inter', sans-serif" font-size="10" font-weight="600" fill="#64748B" letter-spacing="3.5">CLEAN ROOFTOP ENERGY</text>
+</svg>
