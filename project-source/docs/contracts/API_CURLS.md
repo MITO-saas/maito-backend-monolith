@@ -768,3 +768,83 @@ curl -X GET "http://localhost:8080/api/v1/admin/audit/logs?actionType=INVENTORY_
   }
 }
 ```
+
+---
+
+## Phase 9: Financial Core, Customer Wallet & Payment Gateway
+
+### 1. Get Customer Wallet Balance
+```bash
+curl -X GET "http://localhost:8080/api/v1/wallet/balance" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>" \
+  -H "Accept: application/json"
+```
+
+### 2. Get Wallet Transaction Ledger
+```bash
+curl -X GET "http://localhost:8080/api/v1/wallet/transactions?page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>" \
+  -H "Accept: application/json"
+```
+
+### 3. Admin Manual Wallet Adjustment
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/wallet/adjust" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <TENANT_ADMIN_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerProfileId": "cc6d58ae-0280-4a88-bf1b-4bf6cc1bc9c7",
+    "transactionType": "CREDIT",
+    "amount": 100.00,
+    "category": "CUSTOMER_SUPPORT_GOODWILL",
+    "referenceId": "TICKET-1049",
+    "reason": "Goodwill compensation for delayed fulfillment"
+  }'
+```
+
+### 4. Initialize Payment Transaction
+```bash
+curl -X POST "http://localhost:8080/api/v1/payments/initialize" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "9f8b6123-8f7a-4acf-bfcf-dea623d00405",
+    "amount": 525.80,
+    "currency": "INR"
+  }'
+```
+
+### 5. Inbound Razorpay Webhook Settlement
+```bash
+curl -X POST "http://localhost:8080/api/v1/payments/webhook/razorpay" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "X-Razorpay-Signature: <CALCULATED_HMAC_SHA256>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event": "payment.captured",
+    "order_id": "order_rzp_mock_123456",
+    "payment_id": "pay_mock_789101"
+  }'
+```
+
+### 6. Checkout with Loyalty Coins Redemption
+```bash
+curl -X POST "http://localhost:8080/api/v1/checkout/create-order" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "X-Cart-ID: <STORED_CART_UUID>" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "shippingAddress": {
+      "line1": "Flat 402, Lotus Towers",
+      "city": "Patna",
+      "state": "Bihar",
+      "pincode": "800001"
+    },
+    "couponCode": "CRUNCH20",
+    "coinsToRedeem": 100.00
+  }'
+```
