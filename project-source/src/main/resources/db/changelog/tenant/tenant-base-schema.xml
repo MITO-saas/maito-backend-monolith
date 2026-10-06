@@ -107,4 +107,6 @@
     <include file="006-fulfillment-schema.xml" relativeToChangelogFile="true"/>
     <include file="007-analytics-audit-schema.xml" relativeToChangelogFile="true"/>
 
+    <include file="008-wallet-payment-schema.xml" relativeToChangelogFile="true"/>
+
 </databaseChangeLog>

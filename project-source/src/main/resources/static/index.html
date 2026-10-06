@@ -652,6 +652,10 @@
         container.innerHTML = `
           <div class="flex items-center space-x-2 bg-slate-100 pl-3 pr-2 py-1 rounded-xl border border-slate-200">
             <span class="text-xs font-bold text-slate-800">Hi, ${displayName}</span>
+            <span class="text-[11px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex items-center space-x-1" title="Loyalty Balance">
+              <i data-lucide="coins" class="w-3 h-3 text-amber-600"></i>
+              <span>₹${(store.wallet ? Number(store.wallet.balance || 0).toFixed(2) : '0.00')}</span>
+            </span>
             <button onclick="store.logout()" title="Sign Out" 
                     class="p-1 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-lg transition-colors">
               <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
@@ -751,6 +755,13 @@
       }
 
       document.getElementById('cart-shipping').innerText = calc.shipping === 0 ? 'FREE' : `₹${calc.shipping.toFixed(2)}`;
+      const coinsRow = document.getElementById('cart-coins-row');
+      if (calc.coinsRedeemed > 0) {
+        coinsRow.classList.remove('hidden');
+        document.getElementById('cart-coins').innerText = `-₹${calc.coinsRedeemed.toFixed(2)}`;
+      } else if (coinsRow) {
+        coinsRow.classList.add('hidden');
+      }
       document.getElementById('cart-total').innerText = `₹${calc.total.toFixed(2)}`;
 
       // Coupon Badge
@@ -1358,6 +1369,7 @@
       // Bootstrap SDUI and fetch existing cart
       await initSDUI();
       await store.fetchCart();
+      if (store.isAuthenticated()) await store.fetchWalletBalance();
       renderCartBadge();
     });
   </script>

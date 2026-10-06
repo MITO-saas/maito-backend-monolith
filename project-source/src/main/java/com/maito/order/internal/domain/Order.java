@@ -1,22 +1,14 @@
 package com.maito.order.internal.domain;
 
-import com.maito.shared.domain.BaseAuditableEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,57 +19,72 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Order extends BaseAuditableEntity {
+public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @Column(name = "order_number", length = 64, nullable = false, unique = true)
+    @Column(name = "order_number", nullable = false, unique = true, length = 64)
     private String orderNumber;
 
     @Column(name = "customer_profile_id", nullable = false)
     private UUID customerProfileId;
 
-    @Column(name = "order_status", length = 32, nullable = false)
+    @Column(name = "order_status", nullable = false, length = 32)
     @Builder.Default
     private String orderStatus = "PENDING_PAYMENT";
 
-    @Column(name = "currency_code", length = 8, nullable = false)
+    @Column(name = "currency_code", nullable = false, length = 8)
     @Builder.Default
     private String currencyCode = "INR";
 
-    @Column(name = "subtotal_amount", precision = 12, scale = 2, nullable = false)
+    @Column(name = "subtotal_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotalAmount;
 
-    @Column(name = "discount_amount", precision = 12, scale = 2, nullable = false)
+    @Column(name = "discount_amount", nullable = false, precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
-    @Column(name = "tax_amount", precision = 12, scale = 2, nullable = false)
+    @Column(name = "tax_amount", nullable = false, precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal taxAmount = BigDecimal.ZERO;
 
-    @Column(name = "shipping_amount", precision = 12, scale = 2, nullable = false)
+    @Column(name = "shipping_amount", nullable = false, precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal shippingAmount = BigDecimal.ZERO;
 
-    @Column(name = "total_amount", precision = 12, scale = 2, nullable = false)
+    @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
     @Column(name = "coupon_code", length = 64)
     private String couponCode;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "shipping_address_snapshot", columnDefinition = "jsonb", nullable = false)
-    @Builder.Default
-    private Map<String, Object> shippingAddressSnapshot = new HashMap<>();
+    @Column(name = "shipping_address_snapshot", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> shippingAddressSnapshot;
 
     @Column(name = "payment_reference", length = 128)
     private String paymentReference;
 
-    @Column(name = "payment_status", length = 32, nullable = false)
+    @Column(name = "payment_status", nullable = false, length = 32)
     @Builder.Default
     private String paymentStatus = "UNPAID";
+
+    @Column(name = "coins_redeemed", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal coinsRedeemed = BigDecimal.ZERO;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
 }
