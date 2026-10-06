@@ -67,6 +67,7 @@ public class SecurityConfig {
                     "/v3/api-docs/**",
                     "/swagger-resources/**",
                     "/webjars/**",
+                    "/actuator/health/**",
                     "/actuator/**",
                     "/api/v1/health/**",
                     "/api/v1/health",
