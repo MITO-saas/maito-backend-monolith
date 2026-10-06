@@ -89,6 +89,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/cart/items/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/promotions/apply").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/checkout/payment-callback").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/checkout/payment-callback/**").permitAll()
 
                 // Public Storefront Fulfillment Tracking
                 .requestMatchers(HttpMethod.GET, "/api/v1/fulfillment/track/**").permitAll()
@@ -134,3 +135,4 @@ public class SecurityConfig {
         };
     }
 }
+
