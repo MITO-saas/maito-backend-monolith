@@ -32,6 +32,12 @@ public enum ErrorCode {
     RETURN_NOT_FOUND("RET_4040", "Return request not found", HttpStatus.NOT_FOUND),
     TICKET_NOT_FOUND("TCK_4040", "Support ticket not found", HttpStatus.NOT_FOUND),
     INVALID_TICKET_STATUS("TCK_4001", "Invalid support ticket status", HttpStatus.BAD_REQUEST),
+    INSUFFICIENT_B2B_CREDIT("B2B_4001", "Insufficient B2B credit line", HttpStatus.BAD_REQUEST),
+    B2B_PARTNER_NOT_FOUND("B2B_4040", "B2B partner profile not found", HttpStatus.NOT_FOUND),
+    B2B_PARTNER_NOT_VERIFIED("B2B_4002", "B2B partner is not verified for credit or wholesale orders", HttpStatus.BAD_REQUEST),
+    B2B_INVOICE_NOT_FOUND("B2B_4041", "B2B invoice not found", HttpStatus.NOT_FOUND),
+    B2B_INVOICE_ALREADY_PAID("B2B_4003", "B2B invoice is already paid", HttpStatus.BAD_REQUEST),
+    INVALID_GSTIN("B2B_4004", "Invalid GSTIN format", HttpStatus.BAD_REQUEST),
     INTERNAL_SERVER_ERROR("MAITO_5000", "An unexpected internal server error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
