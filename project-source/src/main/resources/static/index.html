@@ -208,11 +208,11 @@
         <div class="space-y-1.5 text-xs font-medium text-slate-600 border-t border-slate-200/60 pt-3">
           <div class="flex justify-between">
             <span>Subtotal</span>
-            <span id="cart-subtotal" class="font-bold text-slate-900">â‚¹0.00</span>
+            <span id="cart-subtotal" class="font-bold text-slate-900">₹0.00</span>
           </div>
           <div id="cart-discount-row" class="flex justify-between text-emerald-600 hidden">
             <span>Promotional Discount</span>
-            <span id="cart-discount" class="font-bold">-â‚¹0.00</span>
+            <span id="cart-discount" class="font-bold">-₹0.00</span>
           </div>
           <div class="flex justify-between">
             <span>Shipping</span>
@@ -220,7 +220,7 @@
           </div>
           <div class="flex justify-between text-base font-extrabold text-slate-900 pt-2 border-t border-slate-200">
             <span>Total Payable</span>
-            <span id="cart-total" class="text-amber-600">â‚¹0.00</span>
+            <span id="cart-total" class="text-amber-600">₹0.00</span>
           </div>
         </div>
 
@@ -268,6 +268,21 @@
         </div>
 
         <!-- Address Form -->
+                <!-- Saved Addresses Picker (for Authenticated Customer) -->
+        <div id="checkout-saved-addresses-section" class="hidden space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-amber-600"></i>
+              <span>Select Delivery Destination</span>
+            </label>
+            <button type="button" onclick="switchToNewAddressInCheckout()" class="text-xs font-bold text-amber-700 hover:text-amber-900">
+              + New Address
+            </button>
+          </div>
+          <div id="checkout-saved-addresses-list" class="grid grid-cols-1 gap-2.5 max-h-48 overflow-y-auto pr-1">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
         <form id="shipping-form" onsubmit="handlePlaceOrder(event)" class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -307,6 +322,14 @@
           </div>
 
           <!-- Payment Simulation Info -->
+                    <!-- Save Address to Profile Option -->
+          <div id="save-address-option-container" class="flex items-center space-x-2 pt-1">
+            <input type="checkbox" id="save-address-checkbox" checked class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300" />
+            <label for="save-address-checkbox" class="text-xs font-medium text-slate-600 cursor-pointer">
+              Save this address to my profile for future orders
+            </label>
+          </div>
+
           <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-center justify-between">
             <div class="flex items-center space-x-3">
               <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
@@ -323,7 +346,7 @@
           <!-- Order Summary Pill -->
           <div class="bg-amber-50/60 border border-amber-100 rounded-2xl p-4 flex items-center justify-between text-xs font-bold">
             <span class="text-slate-700">Total Payable Amount:</span>
-            <span id="checkout-total-display" class="text-lg text-amber-700 font-extrabold">â‚¹0.00</span>
+            <span id="checkout-total-display" class="text-lg text-amber-700 font-extrabold">₹0.00</span>
           </div>
 
           <!-- Submit Order Button -->
@@ -364,7 +387,7 @@
           </div>
           <div class="flex justify-between">
             <span class="text-slate-500 font-medium">Total Charged:</span>
-            <span id="confirmed-order-total" class="font-extrabold text-slate-900 text-sm">â‚¹0.00</span>
+            <span id="confirmed-order-total" class="font-extrabold text-slate-900 text-sm">₹0.00</span>
           </div>
         </div>
 
@@ -478,7 +501,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
-            <input type="password" id="login-password" required placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" 
+            <input type="password" id="login-password" required placeholder="••••••••" 
                    class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
           </div>
           <button type="submit" id="login-submit-btn" 
@@ -486,6 +509,20 @@
             <span>Sign In to Storefront</span>
           </button>
         </form>
+        <div class="relative my-4">
+          <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+          <div class="relative flex justify-center text-[11px]"><span class="px-2 bg-white text-slate-400 font-semibold uppercase">Or continue with</span></div>
+        </div>
+
+        <button type="button" onclick="handleSocialGoogleSignIn()" class="w-full py-2.5 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl flex items-center justify-center space-x-2.5 transition-all shadow-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Sign in with Google</span>
+        </button>
       </div>
 
       <!-- Register Form -->
@@ -515,7 +552,7 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
-            <input type="password" id="reg-password" required placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" 
+            <input type="password" id="reg-password" required placeholder="••••••••" 
                    class="w-full px-3.5 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-amber-600" />
           </div>
           <button type="submit" id="reg-submit-btn" 
@@ -525,6 +562,65 @@
         </form>
       </div>
 
+    </div>
+  </div>
+
+    <!-- ========================================================================= -->
+  <!-- 4. SAVED ADDRESSES MODAL -->
+  <!-- ========================================================================= -->
+  <div id="saved-addresses-modal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Saved Addresses</h3>
+            <p class="text-xs text-slate-500">Manage your shipping destinations</p>
+          </div>
+        </div>
+        <button onclick="closeSavedAddressesModal()" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Address List -->
+      <div id="saved-addresses-modal-list" class="mt-4 space-y-3">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Add New Address Toggle / Form -->
+      <div class="mt-6 pt-4 border-t border-slate-100">
+        <button id="toggle-add-address-btn" onclick="toggleAddAddressForm()" 
+                class="w-full py-2.5 px-4 border border-dashed border-amber-300 text-amber-700 hover:bg-amber-50 rounded-2xl text-xs font-bold flex items-center justify-center space-x-2 transition-all">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Add New Shipping Address</span>
+        </button>
+
+        <form id="new-address-form" onsubmit="handleAddNewAddress(event)" class="hidden mt-4 space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+          <div class="grid grid-cols-2 gap-3">
+            <input type="text" id="modal-addr-name" required placeholder="Recipient Name *" class="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl" />
+            <input type="tel" id="modal-addr-phone" required placeholder="Mobile Phone *" class="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl" />
+          </div>
+          <input type="text" id="modal-addr-line1" required placeholder="Address Line 1 (Street/Flat) *" class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl" />
+          <div class="grid grid-cols-3 gap-2">
+            <input type="text" id="modal-addr-city" required placeholder="City *" value="Patna" class="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl" />
+            <input type="text" id="modal-addr-state" required placeholder="State *" value="Bihar" class="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl" />
+            <input type="text" id="modal-addr-pincode" required placeholder="Pincode *" value="800001" class="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl" />
+          </div>
+          <div class="flex items-center justify-between pt-2">
+            <label class="flex items-center space-x-2 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" id="modal-addr-default" class="rounded text-amber-600" />
+              <span>Set as default</span>
+            </label>
+            <div class="space-x-2">
+              <button type="button" onclick="toggleAddAddressForm()" class="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800">Cancel</button>
+              <button type="submit" id="save-address-btn" class="px-4 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-xl hover:bg-amber-700">Save Address</button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -653,17 +749,46 @@
       if (store.isAuthenticated()) {
         const user = store.userProfile || {};
         const displayName = user.firstName || 'Customer';
+        const initial = (displayName[0] || 'C').toUpperCase();
+        const balance = (store.wallet ? Number(store.wallet.balance || 0).toFixed(2) : '0.00');
         container.innerHTML = `
-          <div class="flex items-center space-x-2 bg-slate-100 pl-3 pr-2 py-1 rounded-xl border border-slate-200">
-            <span class="text-xs font-bold text-slate-800">Hi, ${displayName}</span>
-            <span class="text-[11px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex items-center space-x-1" title="Loyalty Balance">
-              <i data-lucide="coins" class="w-3 h-3 text-amber-600"></i>
-              <span>â‚¹${(store.wallet ? Number(store.wallet.balance || 0).toFixed(2) : '0.00')}</span>
-            </span>
-            <button onclick="store.logout()" title="Sign Out" 
-                    class="p-1 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-lg transition-colors">
-              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+          <div class="relative" id="user-menu-wrapper">
+            <button id="user-menu-btn" onclick="toggleUserDropdown()" 
+                    class="flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 pl-2 pr-3 py-1.5 rounded-xl border border-slate-200 transition-all shadow-sm">
+              <div class="w-6 h-6 rounded-full bg-amber-500 text-white font-black text-xs flex items-center justify-center">
+                ${initial}
+              </div>
+              <span class="text-xs font-bold text-slate-800">Hi, ${displayName}</span>
+              <span class="text-[11px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex items-center space-x-1" title="Loyalty Balance">
+                <i data-lucide="coins" class="w-3 h-3 text-amber-600"></i>
+                <span>₹${balance}</span>
+              </span>
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500"></i>
             </button>
+
+            <!-- Dropdown Menu -->
+            <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 divide-y divide-slate-100">
+              <div class="px-4 py-2.5">
+                <div class="text-xs font-bold text-slate-900">${user.firstName || ''} ${user.lastName || ''}</div>
+                <div class="text-[11px] text-slate-500 truncate">${user.email || 'customer@mitocrunch.com'}</div>
+              </div>
+              <div class="py-1">
+                <button onclick="openSavedAddressesModal()" class="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-amber-700 flex items-center space-x-2.5 transition-colors">
+                  <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i>
+                  <span>Saved Addresses</span>
+                </button>
+                <button onclick="openTrackingModal()" class="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-amber-700 flex items-center space-x-2.5 transition-colors">
+                  <i data-lucide="truck" class="w-3.5 h-3.5 text-slate-400"></i>
+                  <span>Track Orders</span>
+                </button>
+              </div>
+              <div class="py-1">
+                <button onclick="store.logout()" class="w-full text-left px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center space-x-2.5 transition-colors">
+                  <i data-lucide="log-out" class="w-3.5 h-3.5 text-rose-500"></i>
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
           </div>
         `;
       } else {
@@ -677,6 +802,21 @@
       }
       if (window.lucide) window.lucide.createIcons();
     }
+
+    function toggleUserDropdown() {
+      const menu = document.getElementById('user-dropdown-menu');
+      if (menu) menu.classList.toggle('hidden');
+    }
+
+    window.addEventListener('click', (e) => {
+      const menu = document.getElementById('user-dropdown-menu');
+      const btn = document.getElementById('user-menu-btn');
+      if (menu && !menu.classList.contains('hidden')) {
+        if (btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+          menu.classList.add('hidden');
+        }
+      }
+    });
 
     function renderCartBadge() {
       const count = store.getCartCount();
@@ -723,7 +863,7 @@
             <div class="flex-grow min-w-0">
               <h4 class="text-xs font-bold text-slate-900 truncate">${item.productName || 'Makhana'}</h4>
               <p class="text-[11px] text-slate-400">${item.variantSku || ''}</p>
-              <div class="text-xs font-extrabold text-amber-600 mt-1">â‚¹${Number(item.unitPrice || 0).toFixed(2)}</div>
+              <div class="text-xs font-extrabold text-amber-600 mt-1">${store.formatCurrency(item.unitPrice || 0)}</div>
             </div>
             <!-- Quantity Controls -->
             <div class="flex items-center space-x-1 bg-slate-100 rounded-xl p-1">
@@ -748,25 +888,25 @@
 
       // Financial Breakdown
       const calc = store.getCartPayable();
-      document.getElementById('cart-subtotal').innerText = `â‚¹${calc.subtotal.toFixed(2)}`;
+      document.getElementById('cart-subtotal').innerText = store.formatCurrency(calc.subtotal);
       
       const discRow = document.getElementById('cart-discount-row');
       if (calc.discount > 0) {
         discRow.classList.remove('hidden');
-        document.getElementById('cart-discount').innerText = `-â‚¹${calc.discount.toFixed(2)}`;
+        document.getElementById('cart-discount').innerText = '-' + store.formatCurrency(calc.discount);
       } else {
         discRow.classList.add('hidden');
       }
 
-      document.getElementById('cart-shipping').innerText = calc.shipping === 0 ? 'FREE' : `â‚¹${calc.shipping.toFixed(2)}`;
+      document.getElementById('cart-shipping').innerText = calc.shipping === 0 ? 'FREE' : store.formatCurrency(calc.shipping);
       const coinsRow = document.getElementById('cart-coins-row');
       if (calc.coinsRedeemed > 0) {
         coinsRow.classList.remove('hidden');
-        document.getElementById('cart-coins').innerText = `-â‚¹${calc.coinsRedeemed.toFixed(2)}`;
+        document.getElementById('cart-coins').innerText = '-' + store.formatCurrency(calc.coinsRedeemed);
       } else if (coinsRow) {
         coinsRow.classList.add('hidden');
       }
-      document.getElementById('cart-total').innerText = `â‚¹${calc.total.toFixed(2)}`;
+      document.getElementById('cart-total').innerText = store.formatCurrency(calc.total);
 
       // Coupon Badge
       const couponBadge = document.getElementById('coupon-badge-container');
@@ -776,7 +916,7 @@
           <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold">
             <div class="flex items-center space-x-1.5">
               <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
-              <span>Coupon <strong>${store.appliedCoupon.code}</strong> applied (â‚¹${store.appliedCoupon.discountAmount} saved)</span>
+              <span>Coupon <strong>${store.appliedCoupon.code}</strong> applied (₹${store.appliedCoupon.discountAmount} saved)</span>
             </div>
             <button onclick="store.removeCoupon()" class="text-rose-600 hover:underline font-bold text-[11px] ml-2">Remove</button>
           </div>
@@ -820,25 +960,30 @@
       openCheckoutModal();
     }
 
-    function openCheckoutModal() {
+    async function openCheckoutModal() {
       const modal = document.getElementById('checkout-modal');
       modal.classList.remove('hidden');
       document.getElementById('checkout-form-container').classList.remove('hidden');
       document.getElementById('checkout-confirmation-container').classList.add('hidden');
 
       const calc = store.getCartPayable();
-      document.getElementById('checkout-total-display').innerText = `â‚¹${calc.total.toFixed(2)}`;
+      document.getElementById('checkout-total-display').innerText = store.formatCurrency(calc.total);
 
       const guestNotice = document.getElementById('checkout-guest-notice');
+      const saveOption = document.getElementById('save-address-option-container');
       if (!store.isAuthenticated()) {
-        guestNotice.classList.remove('hidden');
+        if (guestNotice) guestNotice.classList.remove('hidden');
+        if (saveOption) saveOption.classList.add('hidden');
+        const section = document.getElementById('checkout-saved-addresses-section');
+        if (section) section.classList.add('hidden');
       } else {
-        guestNotice.classList.add('hidden');
-        // Pre-fill profile
+        if (guestNotice) guestNotice.classList.add('hidden');
+        if (saveOption) saveOption.classList.remove('hidden');
         const u = store.userProfile;
-        if (u) {
+        if (u && !document.getElementById('ship-name').value) {
           document.getElementById('ship-name').value = `${u.firstName || ''} ${u.lastName || ''}`.trim();
         }
+        await renderCheckoutSavedAddresses();
       }
       if (window.lucide) window.lucide.createIcons();
     }
@@ -877,6 +1022,23 @@
       btn.innerText = 'Reserving Stock & Placing Order...';
 
       try {
+      // Persist address to profile if checked
+      const saveCheckbox = document.getElementById('save-address-checkbox');
+      if (saveCheckbox && saveCheckbox.checked && store.isAuthenticated()) {
+        try {
+          await store.saveAddress({
+            recipientName: shippingAddress.name,
+            phone: shippingAddress.phone,
+            addressLine1: shippingAddress.line1,
+            city: shippingAddress.city,
+            state: shippingAddress.state,
+            postalCode: shippingAddress.pincode,
+            addressType: 'SHIPPING'
+          });
+        } catch (addrSaveErr) {
+          console.warn('Address persistence notice:', addrSaveErr.message);
+        }
+      }
         const order = await store.checkout(shippingAddress);
         lastCreatedOrder = order;
 
@@ -887,7 +1049,7 @@
 
         document.getElementById('confirmed-order-number').innerText = order.orderNumber;
         document.getElementById('confirmed-order-address').innerText = `${shippingAddress.city}, ${shippingAddress.state} (${shippingAddress.pincode})`;
-        document.getElementById('confirmed-order-total').innerText = `â‚¹${Number(order.totalAmount || 0).toFixed(2)}`;
+        document.getElementById('confirmed-order-total').innerText = store.formatCurrency(order.totalAmount || 0);
 
         showToast(`Order ${order.orderNumber} successfully placed!`);
       } catch (err) {
@@ -1199,8 +1361,8 @@
                     </div>
                     <div class="flex items-center justify-between pt-2 border-t border-slate-100">
                       <div class="flex items-baseline space-x-1.5">
-                        <span class="text-2xl font-black text-slate-900">â‚¹149</span>
-                        <span class="text-xs text-slate-400 line-through">â‚¹199</span>
+                        <span class="text-2xl font-black text-slate-900">₹149</span>
+                        <span class="text-xs text-slate-400 line-through">₹199</span>
                       </div>
                       <button onclick="handleAddToCart(this, '${item.name}')" 
                               class="px-4 py-2.5 bg-slate-900 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm active:scale-95">
