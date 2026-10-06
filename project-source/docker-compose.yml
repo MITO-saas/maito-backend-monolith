@@ -53,7 +53,7 @@ services:
   # =========================================================================
   app:
     build:
-      context: ./project-source
+      context: .
       dockerfile: Dockerfile
     container_name: maito-app
     restart: unless-stopped
