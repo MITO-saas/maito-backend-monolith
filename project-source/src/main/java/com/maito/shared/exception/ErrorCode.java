@@ -26,6 +26,12 @@ public enum ErrorCode {
     INVALID_PAYMENT_SIGNATURE("PAYMENT_4001", "Invalid payment gateway signature", HttpStatus.BAD_REQUEST),
     WALLET_NOT_FOUND("WALLET_4040", "Customer wallet not found", HttpStatus.NOT_FOUND),
     PAYMENT_TRANSACTION_NOT_FOUND("PAYMENT_4040", "Payment transaction not found", HttpStatus.NOT_FOUND),
+        ORDER_NOT_DELIVERED("RET_4001", "Only delivered orders are eligible for return", HttpStatus.BAD_REQUEST),
+    ORDER_NOT_ELIGIBLE_FOR_RETURN("RET_4002", "Order does not belong to customer or is not eligible for return", HttpStatus.BAD_REQUEST),
+    INVALID_RETURN_STATUS("RET_4003", "Invalid return request status for this operation", HttpStatus.BAD_REQUEST),
+    RETURN_NOT_FOUND("RET_4040", "Return request not found", HttpStatus.NOT_FOUND),
+    TICKET_NOT_FOUND("TCK_4040", "Support ticket not found", HttpStatus.NOT_FOUND),
+    INVALID_TICKET_STATUS("TCK_4001", "Invalid support ticket status", HttpStatus.BAD_REQUEST),
     INTERNAL_SERVER_ERROR("MAITO_5000", "An unexpected internal server error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
