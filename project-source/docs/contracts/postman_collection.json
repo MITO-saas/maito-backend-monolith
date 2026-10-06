@@ -3,7 +3,7 @@
     "name": "Maito Multi-Tenant Platform Core API",
     "description": "Enterprise Control Plane, Dynamic Tenant Routing, Connection Telemetry, and Decommissioning",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "9.0.0-phase9-wallet"
+    "version": "10.0.0-phase10-returns"
   },
   "item": [
     {
@@ -2639,6 +2639,505 @@
               ]
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "Phase 10: Returns, Reverse Logistics & Customer Support Helpdesk",
+      "item": [
+        {
+          "name": "Customer Returns",
+          "item": [
+            {
+              "name": "Initiate Return Request",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customer_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{order_id}}\",\n  \"reasonCategory\": \"DEFECTIVE_PRODUCT\",\n  \"customerNotes\": \"Defective packaging received\",\n  \"proofMediaUrls\": [\n    \"https://cdn.example.com/proof1.jpg\"\n  ],\n  \"items\": [\n    {\n      \"orderItemId\": \"{{order_item_id}}\",\n      \"variantId\": \"{{variant_id}}\",\n      \"quantity\": 1\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/returns/request",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "returns",
+                    "request"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Customer Returns",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customer_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/returns/my-requests?page=0&size=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "returns",
+                    "my-requests"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Return Claim Details",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customer_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/returns/{{return_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "returns",
+                    "{{return_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Returns & Reverse Logistics",
+          "item": [
+            {
+              "name": "List All Tenant Returns (Filterable)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/returns?status=REQUESTED&page=0&size=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "returns"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "REQUESTED"
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Approve Return Claim",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/returns/{{return_id}}/approve",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "returns",
+                    "{{return_id}}",
+                    "approve"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Submit QC Evaluation & Trigger Restock/Refund",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"passed\": true,\n  \"qcNotes\": \"Items verified in pristine condition. Approved for inventory restock and wallet refund.\",\n  \"refundMode\": \"WALLET\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/returns/{{return_id}}/qc-submit",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "returns",
+                    "{{return_id}}",
+                    "qc-submit"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer Support Tickets",
+          "item": [
+            {
+              "name": "Create Support Ticket",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customer_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"{{order_id}}\",\n  \"category\": \"ORDER_DELIVERY_ISSUE\",\n  \"subject\": \"Delivery delay inquiry\",\n  \"priority\": \"MEDIUM\",\n  \"message\": \"Hello, package has not arrived within scheduled slot.\",\n  \"attachmentUrls\": []\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/support/tickets",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "support",
+                    "tickets"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Customer Tickets",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customer_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/support/tickets?page=0&size=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "support",
+                    "tickets"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Ticket Details & History",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customer_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/support/tickets/{{ticket_identifier}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "support",
+                    "tickets",
+                    "{{ticket_identifier}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Customer Reply To Ticket",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{customer_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"message\": \"Thank you for following up.\",\n  \"attachmentUrls\": []\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/support/tickets/{{ticket_id}}/messages",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "support",
+                    "tickets",
+                    "{{ticket_id}}",
+                    "messages"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Support Helpdesk",
+          "item": [
+            {
+              "name": "List All Tenant Tickets",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/support/tickets?status=OPEN&page=0&size=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "support",
+                    "tickets"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "OPEN"
+                    },
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Update Ticket Status",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"RESOLVED\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/support/tickets/{{ticket_id}}/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "support",
+                    "tickets",
+                    "{{ticket_id}}",
+                    "status"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Agent Reply to Ticket",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-ID",
+                    "value": "{{tenant_slug}}"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{admin_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"message\": \"We have updated your shipment with the carrier partner. Please verify status.\",\n  \"attachmentUrls\": []\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/support/tickets/{{ticket_id}}/messages",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "support",
+                    "tickets",
+                    "{{ticket_id}}",
+                    "messages"
+                  ]
+                }
+              }
+            }
+          ]
         }
       ]
     }
