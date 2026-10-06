@@ -3,6 +3,8 @@ package com.maito.order;
 import com.maito.cart.api.dto.AddCartItemCommand;
 import com.maito.cart.api.dto.CartResponse;
 import com.maito.cart.api.service.CartService;
+import com.maito.catalog.api.dto.InventoryLevelDto;
+import com.maito.catalog.api.service.InventoryService;
 import com.maito.order.api.dto.CreateOrderCommand;
 import com.maito.order.api.dto.OrderResponse;
 import com.maito.order.api.service.OrderService;
@@ -45,6 +47,9 @@ class CheckoutWithCoinsIntegrationTest {
 
     @Autowired
     private WalletService walletService;
+
+    @Autowired
+    private InventoryService inventoryService;
 
     private final TenantContext tenantContextMito = new TenantContext(
             "mito_crunch",
@@ -136,5 +141,44 @@ class CheckoutWithCoinsIntegrationTest {
         // Wallet balance remains untouched at 50.00
         WalletDto wallet = walletService.getOrCreateWallet(customerProfileId);
         assertThat(wallet.balance()).isEqualByComparingTo(new BigDecimal("50.00"));
+    }
+
+    @Test
+    @DisplayName("Assert compensating rollback restores redeemed coins when checkout fails mid-flight")
+    void testCompensatingRollbackWhenStockReservationFails() {
+        // 1. Credit 100 coins
+        walletService.credit(customerProfileId, new BigDecimal("100.00"), "MANUAL_ADJUSTMENT", "BONUS-99", "Pre-checkout balance");
+        WalletDto initialWallet = walletService.getOrCreateWallet(customerProfileId);
+        assertThat(initialWallet.balance()).isEqualByComparingTo(new BigDecimal("100.00"));
+
+        // 2. Add 2 units to cart (valid stock exists)
+        CartResponse cart = cartService.getOrCreateCart(null, customerProfileId, "INR");
+        cartService.addItem(cart.id(), new AddCartItemCommand(periPeriVariantId, 2));
+
+        // 3. Exhaust available stock right before checkout to provoke mid-flight reservation failure
+        InventoryLevelDto inv = inventoryService.getInventoryLevel(periPeriVariantId, "DEFAULT_WH");
+        int drainQty = inv.availableStock();
+        inventoryService.reserveStock(periPeriVariantId, "DEFAULT_WH", drainQty);
+
+        Map<String, Object> address = Map.of(
+                "line1", "Boring Road",
+                "city", "Patna",
+                "state", "Bihar",
+                "pincode", "800001"
+        );
+
+        // 4. Attempt checkout redeeming 60 coins (stock reservation will fail mid-flight)
+        CreateOrderCommand cmd = new CreateOrderCommand(address, null, new BigDecimal("60.00"));
+        try {
+            assertThrows(RuntimeException.class, () ->
+                    orderService.createOrderFromCart(cart.id(), customerProfileId, cmd));
+
+            // 5. Verify compensating rollback restored the 60 coins back to wallet (balance remains 100.00)
+            WalletDto restoredWallet = walletService.getOrCreateWallet(customerProfileId);
+            assertThat(restoredWallet.balance()).isEqualByComparingTo(new BigDecimal("100.00"));
+        } finally {
+            // Clean up drained stock
+            inventoryService.releaseStock(periPeriVariantId, "DEFAULT_WH", drainQty);
+        }
     }
 }
