@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Return Requests Table -->
+    <changeSet id="001-create-return-requests" author="maito-reverse-logistics-architect">
+        <comment>Customer return requests, inspection and reverse logistics lifecycle</comment>
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="return_requests"/></not>
+        </preConditions>
+        <createTable tableName="return_requests">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="return_number" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_return_requests_number"/>
+            </column>
+            <column name="order_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_returns_order" references="orders(id)" deleteCascade="true"/>
+            </column>
+            <column name="customer_profile_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_returns_customer_profile" references="tenant_user_profiles(id)"/>
+            </column>
+            <column name="status" type="VARCHAR(32)" defaultValue="REQUESTED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_category" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_notes" type="TEXT"/>
+            <column name="proof_media_urls" type="JSONB" defaultValueComputed="'[]'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="qc_notes" type="TEXT"/>
+            <column name="refund_amount" type="NUMERIC(12,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="refund_mode" type="VARCHAR(32)" defaultValue="WALLET"/>
+            <column name="settled_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="return_requests" indexName="idx_return_requests_order_id">
+            <column name="order_id"/>
+        </createIndex>
+        <createIndex tableName="return_requests" indexName="idx_return_requests_customer_id">
+            <column name="customer_profile_id"/>
+        </createIndex>
+        <createIndex tableName="return_requests" indexName="idx_return_requests_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 002: Return Items Table -->
+    <changeSet id="002-create-return-items" author="maito-reverse-logistics-architect">
+        <comment>Granular line items included in a customer return request</comment>
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="return_items"/></not>
+        </preConditions>
+        <createTable tableName="return_items">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="return_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_return_items_return" references="return_requests(id)" deleteCascade="true"/>
+            </column>
+            <column name="order_item_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_return_items_order_item" references="order_items(id)"/>
+            </column>
+            <column name="variant_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_return_items_variant" references="catalog_product_variants(id)"/>
+            </column>
+            <column name="quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="NUMERIC(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE return_items ADD CONSTRAINT chk_return_items_qty_positive CHECK (quantity > 0);
+        </sql>
+
+        <createIndex tableName="return_items" indexName="idx_return_items_return_id">
+            <column name="return_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 003: Support Tickets Table -->
+    <changeSet id="003-create-support-tickets" author="maito-support-architect">
+        <comment>Customer support helpdesk ticketing records</comment>
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="support_tickets"/></not>
+        </preConditions>
+        <createTable tableName="support_tickets">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ticket_number" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_support_tickets_number"/>
+            </column>
+            <column name="customer_profile_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_tickets_customer_profile" references="tenant_user_profiles(id)"/>
+            </column>
+            <column name="order_id" type="UUID">
+                <constraints foreignKeyName="fk_tickets_order" references="orders(id)" deleteCascade="false"/>
+            </column>
+            <column name="category" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subject" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="priority" type="VARCHAR(32)" defaultValue="MEDIUM">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(32)" defaultValue="OPEN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="support_tickets" indexName="idx_support_tickets_customer">
+            <column name="customer_profile_id"/>
+        </createIndex>
+        <createIndex tableName="support_tickets" indexName="idx_support_tickets_order">
+            <column name="order_id"/>
+        </createIndex>
+        <createIndex tableName="support_tickets" indexName="idx_support_tickets_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 004: Ticket Messages Table -->
+    <changeSet id="004-create-ticket-messages" author="maito-support-architect">
+        <comment>Threaded two-way conversation messages between customer and support agents</comment>
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="ticket_messages"/></not>
+        </preConditions>
+        <createTable tableName="ticket_messages">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ticket_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_ticket_messages_ticket" references="support_tickets(id)" deleteCascade="true"/>
+            </column>
+            <column name="sender_profile_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sender_role" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attachment_urls" type="JSONB" defaultValueComputed="'[]'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="ticket_messages" indexName="idx_ticket_messages_ticket">
+            <column name="ticket_id"/>
+        </createIndex>
+        <createIndex tableName="ticket_messages" indexName="idx_ticket_messages_created">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
