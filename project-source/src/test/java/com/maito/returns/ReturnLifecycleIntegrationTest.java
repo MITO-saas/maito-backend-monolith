@@ -323,4 +323,49 @@ class ReturnLifecycleIntegrationTest {
         WalletDto finalWallet = walletService.getOrCreateWallet(customerProfileId);
         assertThat(finalWallet.balance()).isEqualByComparingTo(initialBalance);
     }
+
+    @Test
+    @DisplayName("Assert approving an already settled or rejected return is rejected with INVALID_RETURN_STATUS")
+    void testApprovingNonRequestedReturnRejected() {
+        UUID variantId = createTestSku("invalid-state-sku", 10);
+        Order deliveredOrder = orderRepository.save(Order.builder()
+                .orderNumber("ORD-INVSTATE-" + System.currentTimeMillis())
+                .customerProfileId(customerProfileId)
+                .orderStatus("DELIVERED")
+                .currencyCode("INR")
+                .subtotalAmount(new BigDecimal("150.00"))
+                .totalAmount(new BigDecimal("150.00"))
+                .shippingAddressSnapshot(testShippingAddress)
+                .build());
+
+        OrderItem orderItem = orderItemRepository.save(OrderItem.builder()
+                .orderId(deliveredOrder.getId())
+                .variantId(variantId)
+                .productNameSnapshot("Organic Makhana")
+                .skuSnapshot("MAK-ORG-100G")
+                .unitPrice(new BigDecimal("150.00"))
+                .quantity(1)
+                .totalLineAmount(new BigDecimal("150.00"))
+                .build());
+
+        CreateReturnCommand cmd = CreateReturnCommand.builder()
+                .orderId(deliveredOrder.getId())
+                .reasonCategory("DEFECTIVE_PRODUCT")
+                .customerNotes("Test invalid state")
+                .items(List.of(ReturnItemRequestDto.builder()
+                        .orderItemId(orderItem.getId())
+                        .variantId(variantId)
+                        .quantity(1)
+                        .build()))
+                .build();
+
+        ReturnResponse ret = returnService.createReturnRequest(customerProfileId, cmd);
+        returnService.approveReturn(ret.id());
+
+        // Attempting to approve again when status is already APPROVED
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                returnService.approveReturn(ret.id()));
+
+        assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_RETURN_STATUS);
+    }
 }
