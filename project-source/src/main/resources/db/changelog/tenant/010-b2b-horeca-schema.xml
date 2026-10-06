@@ -7,10 +7,10 @@
 
     <!-- 001: B2B Partners Table -->
     <changeSet id="001-create-b2b-partners" author="maito-b2b-architect">
-        <comment>B2B wholesale and HoReCa verified business partner profiles</comment>
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="b2b_partners"/></not>
         </preConditions>
+        <comment>B2B wholesale and HoReCa verified business partner profiles</comment>
         <createTable tableName="b2b_partners">
             <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -70,10 +70,10 @@
 
     <!-- 002: B2B Price Tiers Table -->
     <changeSet id="002-create-b2b-price-tiers" author="maito-b2b-architect">
-        <comment>Tiered volume wholesale pricing by variant and minimum quantity</comment>
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="b2b_price_tiers"/></not>
         </preConditions>
+        <comment>Tiered volume wholesale pricing by variant and minimum quantity</comment>
         <createTable tableName="b2b_price_tiers">
             <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -119,10 +119,10 @@
 
     <!-- 003: B2B Invoices Table -->
     <changeSet id="003-create-b2b-invoices" author="maito-b2b-architect">
-        <comment>B2B enterprise tax invoices and credit payment tracking</comment>
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="b2b_invoices"/></not>
         </preConditions>
+        <comment>B2B enterprise tax invoices and credit payment tracking</comment>
         <createTable tableName="b2b_invoices">
             <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -188,10 +188,10 @@
 
     <!-- 004: B2B Credit Ledgers Table -->
     <changeSet id="004-create-b2b-credit-ledgers" author="maito-b2b-architect">
-        <comment>Immutable ledger audit trail of all credit holds, releases, and limit adjustments</comment>
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="b2b_credit_ledgers"/></not>
         </preConditions>
+        <comment>Immutable ledger audit trail of all credit holds, releases, and limit adjustments</comment>
         <createTable tableName="b2b_credit_ledgers">
             <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
                 <constraints primaryKey="true" nullable="false"/>

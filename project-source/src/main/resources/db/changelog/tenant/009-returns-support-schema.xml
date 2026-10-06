@@ -7,10 +7,10 @@
 
     <!-- 001: Return Requests Table -->
     <changeSet id="001-create-return-requests" author="maito-reverse-logistics-architect">
-        <comment>Customer return requests, inspection and reverse logistics lifecycle</comment>
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="return_requests"/></not>
         </preConditions>
+        <comment>Customer return requests, inspection and reverse logistics lifecycle</comment>
         <createTable tableName="return_requests">
             <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -64,10 +64,10 @@
 
     <!-- 002: Return Items Table -->
     <changeSet id="002-create-return-items" author="maito-reverse-logistics-architect">
-        <comment>Granular line items included in a customer return request</comment>
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="return_items"/></not>
         </preConditions>
+        <comment>Granular line items included in a customer return request</comment>
         <createTable tableName="return_items">
             <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -109,10 +109,10 @@
 
     <!-- 003: Support Tickets Table -->
     <changeSet id="003-create-support-tickets" author="maito-support-architect">
-        <comment>Customer support helpdesk ticketing records</comment>
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="support_tickets"/></not>
         </preConditions>
+        <comment>Customer support helpdesk ticketing records</comment>
         <createTable tableName="support_tickets">
             <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
                 <constraints primaryKey="true" nullable="false"/>
@@ -162,10 +162,10 @@
 
     <!-- 004: Ticket Messages Table -->
     <changeSet id="004-create-ticket-messages" author="maito-support-architect">
-        <comment>Threaded two-way conversation messages between customer and support agents</comment>
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="ticket_messages"/></not>
         </preConditions>
+        <comment>Threaded two-way conversation messages between customer and support agents</comment>
         <createTable tableName="ticket_messages">
             <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
                 <constraints primaryKey="true" nullable="false"/>
