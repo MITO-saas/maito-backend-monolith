@@ -988,3 +988,116 @@ curl -X POST "http://localhost:8080/api/v1/admin/support/tickets/<TICKET_UUID>/m
     "attachmentUrls": []
   }'
 ```
+
+---
+
+## Phase 11: B2B Wholesale Portal, HoReCa Engine & Credit Term Invoicing
+
+### 1. Customer: Register B2B Partner
+```bash
+curl -X POST "http://localhost:8080/api/v1/b2b/register-partner" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "companyLegalName": "Grand Hyatt Patna Hospitality Pvt Ltd",
+    "tradeName": "Grand Hyatt",
+    "gstin": "10ABCDE1234F1Z5",
+    "fssaiLicenseNumber": "FSSAI-11223344556677",
+    "billingAddress": {
+      "addressLine1": "Fraser Road",
+      "city": "Patna",
+      "state": "Bihar",
+      "postalCode": "800001"
+    }
+  }'
+```
+
+### 2. Customer: Get B2B Profile & Credit Line
+```bash
+curl -X GET "http://localhost:8080/api/v1/b2b/profile" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 3. Customer: View Wholesale Tiered Pricing
+```bash
+curl -X GET "http://localhost:8080/api/v1/b2b/pricing?variantId=<VARIANT_UUID>" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 4. Customer: Place B2B Bulk Order (Net-30 / Net-60 / Prepaid)
+```bash
+curl -X POST "http://localhost:8080/api/v1/b2b/bulk-orders" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "variantId": "<VARIANT_UUID>",
+        "quantity": 100
+      }
+    ],
+    "paymentTerms": "NET_30",
+    "notes": "Bulk supply for restaurant pantry"
+  }'
+```
+
+### 5. Customer: View Tax Invoices
+```bash
+curl -X GET "http://localhost:8080/api/v1/b2b/invoices?page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 6. Customer: Settle Invoice & Restore Credit
+```bash
+curl -X POST "http://localhost:8080/api/v1/b2b/invoices/<INVOICE_UUID>/pay" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 7. Customer: View Credit Ledger Audit Trail
+```bash
+curl -X GET "http://localhost:8080/api/v1/b2b/credit-ledger" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <CUSTOMER_JWT_TOKEN>"
+```
+
+### 8. Admin: List B2B Partners
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/b2b/partners?status=PENDING_VERIFICATION&page=0&size=20" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+### 9. Admin: Verify Partner, Set Credit Limit & Terms
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/b2b/partners/<PARTNER_UUID>/verify" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "verificationStatus": "VERIFIED",
+    "creditLimit": 500000.00,
+    "paymentTermsDays": 30,
+    "notes": "Risk audit verified successfully"
+  }'
+```
+
+### 10. Admin: Configure Volume Price Tier
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/b2b/pricing-tiers" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "variantId": "<VARIANT_UUID>",
+    "minQuantity": 50,
+    "wholesaleUnitPrice": 95.00,
+    "currencyCode": "INR",
+    "isActive": true
+  }'
+```
