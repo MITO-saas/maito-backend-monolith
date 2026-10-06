@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: B2B Partners Table -->
+    <changeSet id="001-create-b2b-partners" author="maito-b2b-architect">
+        <comment>B2B wholesale and HoReCa verified business partner profiles</comment>
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="b2b_partners"/></not>
+        </preConditions>
+        <createTable tableName="b2b_partners">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="customer_profile_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_b2b_partners_customer_profile" references="tenant_user_profiles(id)" deleteCascade="true" unique="true" uniqueConstraintName="uk_b2b_partners_customer_profile"/>
+            </column>
+            <column name="company_legal_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trade_name" type="VARCHAR(255)"/>
+            <column name="gstin" type="VARCHAR(15)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_b2b_partners_gstin"/>
+            </column>
+            <column name="pan" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fssai_license_number" type="VARCHAR(32)"/>
+            <column name="verification_status" type="VARCHAR(32)" defaultValue="PENDING_VERIFICATION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="credit_limit" type="NUMERIC(12,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used_credit" type="NUMERIC(12,2)" defaultValueNumeric="0.00">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_terms_days" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="billing_address" type="JSONB" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE b2b_partners ADD CONSTRAINT chk_b2b_partners_credit_limit CHECK (credit_limit >= 0);
+            ALTER TABLE b2b_partners ADD CONSTRAINT chk_b2b_partners_used_credit CHECK (used_credit >= 0);
+        </sql>
+
+        <createIndex tableName="b2b_partners" indexName="idx_b2b_partners_status">
+            <column name="verification_status"/>
+        </createIndex>
+        <createIndex tableName="b2b_partners" indexName="idx_b2b_partners_gstin">
+            <column name="gstin"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 002: B2B Price Tiers Table -->
+    <changeSet id="002-create-b2b-price-tiers" author="maito-b2b-architect">
+        <comment>Tiered volume wholesale pricing by variant and minimum quantity</comment>
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="b2b_price_tiers"/></not>
+        </preConditions>
+        <createTable tableName="b2b_price_tiers">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="variant_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_b2b_tiers_variant" references="catalog_product_variants(id)" deleteCascade="true"/>
+            </column>
+            <column name="min_quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="wholesale_unit_price" type="NUMERIC(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(8)" defaultValue="INR">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE b2b_price_tiers ADD CONSTRAINT chk_b2b_tiers_min_qty CHECK (min_quantity > 0);
+            ALTER TABLE b2b_price_tiers ADD CONSTRAINT chk_b2b_tiers_unit_price CHECK (wholesale_unit_price > 0);
+        </sql>
+
+        <createIndex tableName="b2b_price_tiers" indexName="idx_b2b_price_tiers_variant">
+            <column name="variant_id"/>
+        </createIndex>
+        <createIndex tableName="b2b_price_tiers" indexName="idx_b2b_price_tiers_min_qty">
+            <column name="min_quantity"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 003: B2B Invoices Table -->
+    <changeSet id="003-create-b2b-invoices" author="maito-b2b-architect">
+        <comment>B2B enterprise tax invoices and credit payment tracking</comment>
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="b2b_invoices"/></not>
+        </preConditions>
+        <createTable tableName="b2b_invoices">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="invoice_number" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_b2b_invoices_number"/>
+            </column>
+            <column name="partner_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_b2b_invoices_partner" references="b2b_partners(id)" deleteCascade="true"/>
+            </column>
+            <column name="order_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_b2b_invoices_order" references="orders(id)" deleteCascade="true"/>
+            </column>
+            <column name="subtotal_amount" type="NUMERIC(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tax_amount" type="NUMERIC(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_amount" type="NUMERIC(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_status" type="VARCHAR(32)" defaultValue="UNPAID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payment_terms" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="issued_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="due_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="paid_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="tax_breakdown" type="JSONB" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="b2b_invoices" indexName="idx_b2b_invoices_partner">
+            <column name="partner_id"/>
+        </createIndex>
+        <createIndex tableName="b2b_invoices" indexName="idx_b2b_invoices_order">
+            <column name="order_id"/>
+        </createIndex>
+        <createIndex tableName="b2b_invoices" indexName="idx_b2b_invoices_status">
+            <column name="payment_status"/>
+        </createIndex>
+        <createIndex tableName="b2b_invoices" indexName="idx_b2b_invoices_due_at">
+            <column name="due_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 004: B2B Credit Ledgers Table -->
+    <changeSet id="004-create-b2b-credit-ledgers" author="maito-b2b-architect">
+        <comment>Immutable ledger audit trail of all credit holds, releases, and limit adjustments</comment>
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="b2b_credit_ledgers"/></not>
+        </preConditions>
+        <createTable tableName="b2b_credit_ledgers">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="partner_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_b2b_ledgers_partner" references="b2b_partners(id)" deleteCascade="true"/>
+            </column>
+            <column name="entry_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="NUMERIC(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used_credit_after" type="NUMERIC(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference_id" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE b2b_credit_ledgers ADD CONSTRAINT chk_b2b_ledgers_amount CHECK (amount > 0);
+        </sql>
+
+        <createIndex tableName="b2b_credit_ledgers" indexName="idx_b2b_ledgers_partner">
+            <column name="partner_id"/>
+        </createIndex>
+        <createIndex tableName="b2b_credit_ledgers" indexName="idx_b2b_ledgers_created_at">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
