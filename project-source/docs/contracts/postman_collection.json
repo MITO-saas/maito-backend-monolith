@@ -3735,6 +3735,162 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Phase 14: Resilient 3rd-Party Integrations & Webhooks",
+      "item": [
+        {
+          "name": "1. Initialize Stripe Payment Intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"amount\": 999,\n  \"currency\": \"INR\",\n  \"gatewayProvider\": \"STRIPE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/initialize",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "initialize"
+              ]
+            },
+            "description": "Initializes a Stripe payment transaction with client secret / gateway order ID."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Inbound Stripe Webhook Settlement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "t=1791337506,v1=test_sig"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_stripe_test\",\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"pi_stripe_123\",\n      \"amount\": 99900,\n      \"currency\": \"inr\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payments/webhook/stripe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "webhook",
+                "stripe"
+              ]
+            },
+            "description": "Inbound Stripe webhook verifying Stripe-Signature and idempotency."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Inbound Delhivery Fulfillment Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch"
+              },
+              {
+                "key": "X-Delhivery-Signature",
+                "value": "test_sig"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"evt_dlv_123\",\n  \"waybill\": \"DLV-TEST-IN\",\n  \"status\": \"In Transit\",\n  \"location\": \"PATNA_CENTRAL_HUB\",\n  \"remarks\": \"Scanned at sorting hub\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/fulfillment/webhooks/delhivery",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fulfillment",
+                "webhooks",
+                "delhivery"
+              ]
+            },
+            "description": "Inbound Delhivery tracking update updating shipment checkpoints and customer notification."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Inbound Shiprocket Fulfillment Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "mito_crunch"
+              },
+              {
+                "key": "X-Webhook-Signature",
+                "value": "test_sig"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"evt_sr_123\",\n  \"awb\": \"SR-TEST-AGG\",\n  \"current_status\": \"DELIVERED\",\n  \"location\": \"PATNA_DOORSTEP\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/fulfillment/webhooks/shiprocket",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fulfillment",
+                "webhooks",
+                "shiprocket"
+              ]
+            },
+            "description": "Inbound Shiprocket tracking update."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
