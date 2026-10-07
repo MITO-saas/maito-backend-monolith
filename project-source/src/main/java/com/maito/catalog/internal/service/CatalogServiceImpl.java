@@ -23,6 +23,9 @@ import com.maito.shared.exception.ErrorCode;
 import com.maito.tenant.routing.TenantContextHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.maito.catalog.api.event.ProductCreatedEvent;
+import com.maito.catalog.api.event.ProductUpdatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,6 +53,8 @@ public class CatalogServiceImpl implements CatalogService {
     private final InventoryLevelRepository inventoryRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    @Autowired(required = false)
+    private ApplicationEventPublisher eventPublisher;
 
     public CatalogServiceImpl(
             CatalogCategoryRepository categoryRepository,
@@ -332,6 +337,9 @@ public class CatalogServiceImpl implements CatalogService {
         }
 
         evictProductCache(TenantContextHolder.getTenantId(), safeSlug);
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new ProductCreatedEvent(savedProduct.getId(), TenantContextHolder.getTenantId(), safeSlug));
+        }
         return getProductBySlug(safeSlug, "INR");
     }
 
@@ -363,6 +371,9 @@ public class CatalogServiceImpl implements CatalogService {
 
         CatalogProduct saved = productRepository.save(product);
         evictProductCache(TenantContextHolder.getTenantId(), saved.getSlug());
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new ProductUpdatedEvent(saved.getId(), TenantContextHolder.getTenantId(), saved.getSlug()));
+        }
         return getProductBySlug(saved.getSlug(), "INR");
     }
 

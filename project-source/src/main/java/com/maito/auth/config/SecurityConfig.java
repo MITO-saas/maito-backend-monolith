@@ -92,6 +92,7 @@ public class SecurityConfig {
                 // Public Storefront Layouts
                 .requestMatchers(HttpMethod.GET, "/api/v1/cms/pages/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/store/settings").permitAll()
                 // Public Storefront Cart & Promotions & Payment Webhook
                 .requestMatchers(HttpMethod.GET, "/api/v1/cart").permitAll()

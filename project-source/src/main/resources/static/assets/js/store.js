@@ -513,6 +513,61 @@ class MaitoStore {
     });
   }
 
+
+  // --- ELASTICSEARCH FULL-TEXT SEARCH & AUTOCOMPLETE ---
+  async searchProducts(params = {}) {
+    const queryParts = [];
+    if (params.q) queryParts.push(`q=${encodeURIComponent(params.q)}`);
+    if (params.category) queryParts.push(`category=${encodeURIComponent(params.category)}`);
+    if (params.brand) queryParts.push(`brand=${encodeURIComponent(params.brand)}`);
+    if (params.minPrice !== undefined && params.minPrice !== null && params.minPrice !== '') {
+      queryParts.push(`minPrice=${encodeURIComponent(params.minPrice)}`);
+    }
+    if (params.maxPrice !== undefined && params.maxPrice !== null && params.maxPrice !== '') {
+      queryParts.push(`maxPrice=${encodeURIComponent(params.maxPrice)}`);
+    }
+    if (params.inStock !== undefined && params.inStock !== null) {
+      queryParts.push(`inStock=${encodeURIComponent(params.inStock)}`);
+    }
+    if (params.sort) queryParts.push(`sort=${encodeURIComponent(params.sort)}`);
+    if (params.page !== undefined && params.page !== null) queryParts.push(`page=${encodeURIComponent(params.page)}`);
+    if (params.size !== undefined && params.size !== null) queryParts.push(`size=${encodeURIComponent(params.size)}`);
+
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    const res = await this.apiFetch(`/api/v1/search/products${queryString}`);
+    if (res.success && res.data) {
+      return res.data;
+    }
+    throw new Error(res.message || 'Product search failed');
+  }
+
+  async getSearchSuggestions(query) {
+    const trimmed = (query || '').trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    if (this._suggestDebounceTimer) {
+      clearTimeout(this._suggestDebounceTimer);
+    }
+
+    return new Promise((resolve) => {
+      this._suggestDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await this.apiFetch(`/api/v1/search/suggest?q=${encodeURIComponent(trimmed)}`);
+          if (res.success && Array.isArray(res.data)) {
+            resolve(res.data);
+          } else {
+            resolve([]);
+          }
+        } catch (e) {
+          console.warn('Autocomplete fetch failed:', e);
+          resolve([]);
+        }
+      }, 250);
+    });
+  }
+
   // --- FULFILLMENT TRACKING ---
   async trackOrder(orderNumber) {
     const trimmed = (orderNumber || '').trim();

@@ -94,6 +94,8 @@ management:
       enabled: false
     kafka:
       enabled: false
+    elasticsearch:
+      enabled: false
   metrics:
     tags:
       application: maito-backend-monolith
@@ -111,6 +113,12 @@ management:
       endpoint: ${ZIPKIN_ENDPOINT:http://tempo:9411/api/v2/spans}
 # Rate Limiting & Gateway Configuration
 maito:
+  search:
+    elasticsearch:
+      enabled: ${ELASTICSEARCH_ENABLED:true}
+      uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+      connection-timeout-ms: 3000
+      socket-timeout-ms: 5000
   gateway:
     rate-limiting:
       enabled: ${MAITO_RATE_LIMITING_ENABLED:true}
