@@ -1461,3 +1461,117 @@ kubectl apply -f tests/chaos/experiments/redis-failure.yaml -n maito-prod
 ```bash
 kubectl get podchaos,networkchaos -n maito-prod
 ```
+
+
+---
+
+## SECTION 19: PLUG-AND-PLAY DYNAMIC MULTI-TENANT ARCHITECTURE & INTEGRATION CONTRACTS
+
+### 1. Configure Tenant-Specific Payment Gateway (Razorpay / Stripe)
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/payments/configs" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: everrites" \
+  -d '{
+    "provider": "RAZORPAY",
+    "isEnabled": true,
+    "isTestMode": true,
+    "keyId": "rzp_live_tenant_alpha_key_999",
+    "secretKey": "rzp_secret_alpha_999",
+    "webhookSecret": "rzp_whsec_alpha_999",
+    "merchantAccountId": "acc_rzp_alpha"
+  }'
+```
+
+### 2. Retrieve Active Tenant Payment Gateway Credentials
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/payments/configs/RAZORPAY" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: everrites"
+```
+
+### 3. List All Configured Payment Gateways for Current Tenant
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/payments/configs" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: everrites"
+```
+
+### 4. Direct Inbound Webhook Settlement with Tenant URL Routing (Razorpay)
+```bash
+# HMAC-SHA256 signature generated using tenant-specific webhook_secret (e.g., rzp_whsec_alpha_999)
+curl -X POST "http://localhost:8080/api/v1/payments/webhook/everrites/razorpay" \
+  -H "Content-Type: application/json" \
+  -H "X-Razorpay-Signature: a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0" \
+  -d '{
+    "event": "payment.captured",
+    "order_id": "order_rzp_everrites_1001",
+    "payment_id": "pay_live_9876543210"
+  }'
+```
+
+### 5. Direct Inbound Webhook Settlement with Tenant URL Routing (Stripe)
+```bash
+# Stripe signature generated using tenant-specific webhook_secret
+curl -X POST "http://localhost:8080/api/v1/payments/webhook/everrites/stripe" \
+  -H "Content-Type: application/json" \
+  -H "Stripe-Signature: t=1791368371,v1=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789" \
+  -d '{
+    "id": "evt_test_123456",
+    "type": "payment_intent.succeeded",
+    "data": {
+      "object": {
+        "id": "pi_live_stripe_987654",
+        "amount_received": 49900,
+        "currency": "inr",
+        "metadata": {
+          "order_id": "ORD-STRIPE-1001"
+        }
+      }
+    }
+  }'
+```
+
+### 6. Dynamic Carrier Consignment Dispatch with Tenant-Supplied Credentials (Delhivery)
+```bash
+curl -X POST "http://localhost:8080/api/v1/fulfillment/shipments/dispatch" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: everrites" \
+  -d '{
+    "shipmentNumber": "SHP-DLV-1001",
+    "carrier": "DELHIVERY",
+    "pickupLocation": "PATNA_WEST_HUB",
+    "carrierCredentials": {
+      "apiToken": "delhivery_dynamic_token_tenant_42"
+    },
+    "carrierSettings": {
+      "baseUrl": "https://custom-ingress.delhivery.com",
+      "sandbox": false
+    }
+  }'
+```
+
+### 7. Product Catalog Item Creation with Custom Itemized Tax Slab (18% GST vs 0% Exempt)
+```bash
+curl -X POST "http://localhost:8080/api/v1/catalog/products" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: everrites" \
+  -d '{
+    "title": "Roasted Makhana Gourmet Pack",
+    "handle": "roasted-makhana-gourmet-pack",
+    "categoryPath": "Snacks > Healthy",
+    "hsnCode": "19041090",
+    "taxRate": 0.1800,
+    "variants": [
+      {
+        "sku": "MKH-GOURMET-100G",
+        "title": "100g Pouch",
+        "price": 100.00,
+        "compareAtPrice": 120.00,
+        "weightGrams": 100,
+        "taxRate": 0.1800,
+        "hsnCode": "19041090"
+      }
+    ]
+  }'
+```

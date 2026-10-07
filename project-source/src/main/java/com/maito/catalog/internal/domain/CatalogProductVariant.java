@@ -15,6 +15,7 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +44,12 @@ public class CatalogProductVariant extends BaseAuditableEntity {
 
     @Column(name = "barcode", length = 64)
     private String barcode;
+
+    @Column(name = "tax_rate", precision = 5, scale = 4)
+    private BigDecimal taxRate;
+
+    @Column(name = "hsn_code", length = 32)
+    private String hsnCode;
 
     @Column(name = "weight_grams", nullable = false)
     @Builder.Default
