@@ -15,5 +15,19 @@ public record TenantProfileDto(
     List<String> permissions,
     boolean active,
     Instant createdAt,
-    Instant updatedAt
-) {}
+    Instant updatedAt,
+    String avatarUrl
+) {
+    public TenantProfileDto(
+            UUID id,
+            UUID globalUserId,
+            String firstName,
+            String lastName,
+            String role,
+            List<String> permissions,
+            boolean active,
+            Instant createdAt,
+            Instant updatedAt) {
+        this(id, globalUserId, firstName, lastName, role, permissions, active, createdAt, updatedAt, null);
+    }
+}

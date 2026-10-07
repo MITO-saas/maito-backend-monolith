@@ -41,6 +41,9 @@ public class TenantUserProfile extends BaseAuditableEntity {
     @Builder.Default
     private List<String> permissionMatrix = new ArrayList<>();
 
+    @Column(name = "avatar_url", length = 1024)
+    private String avatarUrl;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = true;

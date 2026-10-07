@@ -112,4 +112,5 @@
     <include file="009-returns-support-schema.xml" relativeToChangelogFile="true"/>
 
     <include file="010-b2b-horeca-schema.xml" relativeToChangelogFile="true"/>
+    <include file="011-tenant-user-avatar.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>
