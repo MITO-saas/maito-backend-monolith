@@ -1430,3 +1430,34 @@ curl -X GET "https://staging.maito.io/actuator/health/readiness" \
 curl -X GET "https://maito.io/actuator/info" \
   -H "Accept: application/json"
 ```
+
+
+---
+
+## SECTION 18: LOAD, CONCURRENCY & CHAOS TESTING TELEMETRY
+
+### 1. Flash Sale Real-Time Metrics Probe (Actuator Prometheus)
+```bash
+curl -X GET "http://localhost:8080/actuator/prometheus" \
+  -H "Accept: text/plain" | grep -E "orders_created|stock_reservation|http_server_requests_seconds"
+```
+
+### 2. Rate Limiter Burst Test (Verify HTTP 429 & Retry-After Header)
+```bash
+for i in {1..20}; do
+  curl -s -o /dev/null -w "Request $i: HTTP %{http_code}
+" \
+    -H "X-Tenant-ID: mito_crunch" \
+    "http://localhost:8080/actuator/info"
+done
+```
+
+### 3. Apply Chaos Mesh Experiment to Staging / Production Cluster
+```bash
+kubectl apply -f tests/chaos/experiments/redis-failure.yaml -n maito-prod
+```
+
+### 4. Inspect Active Chaos Experiments Status
+```bash
+kubectl get podchaos,networkchaos -n maito-prod
+```
