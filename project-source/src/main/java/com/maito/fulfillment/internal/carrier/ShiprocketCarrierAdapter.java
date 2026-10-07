@@ -7,24 +7,24 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
+import java.util.Map;
 
 /**
  * Enterprise Shiprocket 3PL Logistics Aggregator Adapter.
- * Handles AWB allocation, courier rate optimization, and manifest creation.
- * Provides fallback sandbox mode for local and CI regression environments.
+ * Dynamically resolves carrier credentials and settings per tenant request.
  */
 @Component
 @Slf4j
 public class ShiprocketCarrierAdapter implements CarrierAdapter {
 
     @Value("${maito.fulfillment.shiprocket.api-token:dummy_shiprocket_token}")
-    private String apiToken;
+    private String defaultFallbackToken;
 
     @Value("${maito.fulfillment.shiprocket.base-url:https://apiv2.shiprocket.in}")
-    private String baseUrl;
+    private String defaultBaseUrl;
 
     @Value("${maito.fulfillment.shiprocket.sandbox:true}")
-    private boolean sandbox;
+    private boolean defaultSandbox;
 
     private final RestClient restClient;
 
@@ -39,7 +39,22 @@ public class ShiprocketCarrierAdapter implements CarrierAdapter {
 
     @Override
     public ShipmentBookingResult bookShipment(ShipmentBookingRequest request) {
-        log.info("Booking Shiprocket order for shipment [{}] (Sandbox: {})", request.shipmentNumber(), sandbox);
+        Map<String, Object> creds = request.carrierCredentials();
+        String apiToken = (creds != null && creds.get("apiToken") != null && !creds.get("apiToken").toString().isBlank())
+                ? creds.get("apiToken").toString()
+                : defaultFallbackToken;
+
+        Map<String, Object> settings = request.carrierSettings();
+        String baseUrl = (settings != null && settings.get("baseUrl") != null)
+                ? settings.get("baseUrl").toString()
+                : defaultBaseUrl;
+
+        boolean sandbox = (settings != null && settings.get("sandbox") != null)
+                ? Boolean.parseBoolean(settings.get("sandbox").toString())
+                : defaultSandbox;
+
+        log.info("Booking Shiprocket order for shipment [{}] (Sandbox: {}, TokenPresent: {})",
+                request.shipmentNumber(), sandbox, (apiToken != null && !apiToken.isBlank()));
 
         if (!sandbox && apiToken != null && !apiToken.isBlank() && !apiToken.startsWith("dummy")) {
             try {
@@ -50,7 +65,7 @@ public class ShiprocketCarrierAdapter implements CarrierAdapter {
         }
 
         String awb = "SR-" + Math.abs(request.shipmentNumber().hashCode()) + "-AGG";
-        String labelUrl = "https://shiprocket.co/tracking/labels/" + awb + ".pdf";
+        String labelUrl = (settings != null && settings.get("baseUrl") != null) ? baseUrl + "/tracking/labels/" + awb + ".pdf" : "https://shiprocket.co/tracking/labels/" + awb + ".pdf";
         return new ShipmentBookingResult(
                 awb,
                 labelUrl,

@@ -14,6 +14,9 @@ import com.maito.order.api.dto.OrderItemDto;
 import com.maito.order.api.dto.OrderResponse;
 import com.maito.order.api.dto.PaymentCallbackCommand;
 import com.maito.order.api.service.OrderService;
+import com.maito.store.api.dto.StoreSettingsDto;
+import com.maito.store.api.service.StoreService;
+import com.maito.tenant.routing.TenantContextHolder;
 import com.maito.order.internal.domain.Order;
 import com.maito.order.internal.domain.OrderItem;
 import com.maito.order.internal.repository.OrderItemRepository;
@@ -51,6 +54,7 @@ public class OrderServiceImpl implements OrderService {
     private final InventoryService inventoryService;
     private final PromotionService promotionService;
     private final WalletService walletService;
+    private final StoreService storeService;
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -89,13 +93,18 @@ public class OrderServiceImpl implements OrderService {
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(ci.getQuantity()));
             subtotal = subtotal.add(lineTotal);
 
+            BigDecimal variantTax = variant.getTaxRate();
+            if (variantTax == null && product.getTaxRatePercent() != null) {
+                variantTax = product.getTaxRatePercent().divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+            }
             preparedLines.add(new PreparedLineItem(
                     variant.getId(),
                     product.getName(),
                     variant.getSku(),
                     unitPrice,
                     ci.getQuantity(),
-                    lineTotal
+                    lineTotal,
+                    variantTax
             ));
         }
 
@@ -117,9 +126,29 @@ public class OrderServiceImpl implements OrderService {
 
         List<UUID> reservedVariantIds = new ArrayList<>();
         try {
+            // Resolve Store Settings dynamically
+            StoreSettingsDto storeSettings = null;
+            try {
+                storeSettings = storeService.getStoreSettings();
+            } catch (Exception ex) {
+                log.warn("Unable to fetch store settings: {}", ex.getMessage());
+            }
+
+            // Enforce minimum order value
+            if (storeSettings != null && storeSettings.getMinOrderAmount() != null) {
+                BigDecimal minOrder = storeSettings.getMinOrderAmount();
+                if (subtotal.compareTo(minOrder) < 0) {
+                    throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
+                            "Order subtotal (" + subtotal + ") is below minimum order amount (" + minOrder + ")");
+                }
+            }
+
+            // Dynamic warehouse code resolution
+            String warehouseCode = resolveWarehouseCode(cmd.warehouseCode(), storeSettings);
+
             // Step 2: Atomic Inventory Reservation for EVERY item
             for (PreparedLineItem line : preparedLines) {
-                inventoryService.reserveStock(line.variantId(), "DEFAULT_WH", line.quantity());
+                inventoryService.reserveStock(line.variantId(), warehouseCode, line.quantity());
                 reservedVariantIds.add(line.variantId());
             }
 
@@ -129,7 +158,10 @@ public class OrderServiceImpl implements OrderService {
                     : cart.getAppliedCouponCode();
 
             BigDecimal discount = BigDecimal.ZERO;
-            BigDecimal shipping = subtotal.compareTo(new BigDecimal("499.00")) >= 0 ? BigDecimal.ZERO : new BigDecimal("50.00");
+            BigDecimal freeShippingThreshold = (storeSettings != null && storeSettings.getFreeShippingThreshold() != null)
+                    ? storeSettings.getFreeShippingThreshold()
+                    : new BigDecimal("499.00");
+            BigDecimal shipping = subtotal.compareTo(freeShippingThreshold) >= 0 ? BigDecimal.ZERO : new BigDecimal("50.00");
 
             if (effectiveCoupon != null && !effectiveCoupon.isBlank()) {
                 DiscountCalculationResult discRes = promotionService.evaluateCoupon(effectiveCoupon, subtotal, customerProfileId);
@@ -141,9 +173,23 @@ public class OrderServiceImpl implements OrderService {
                 }
             }
 
-            BigDecimal taxRate = new BigDecimal("0.05"); // 5% GST
             BigDecimal taxableAmount = subtotal.subtract(discount).max(BigDecimal.ZERO);
-            BigDecimal tax = taxableAmount.multiply(taxRate).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal defaultStoreTaxRate = (storeSettings != null && storeSettings.getDefaultTaxRate() != null)
+                    ? storeSettings.getDefaultTaxRate()
+                    : new BigDecimal("0.05");
+
+            // Dynamic itemized tax computation across product variants
+            BigDecimal totalTax = BigDecimal.ZERO;
+            for (PreparedLineItem line : preparedLines) {
+                BigDecimal itemTaxRate = (line.taxRate() != null) ? line.taxRate() : defaultStoreTaxRate;
+                BigDecimal lineTotal = line.unitPrice().multiply(BigDecimal.valueOf(line.quantity()));
+                BigDecimal lineTaxable = (subtotal.compareTo(BigDecimal.ZERO) > 0)
+                        ? lineTotal.multiply(taxableAmount).divide(subtotal, 4, RoundingMode.HALF_UP)
+                        : lineTotal;
+                BigDecimal lineTax = lineTaxable.multiply(itemTaxRate).setScale(2, RoundingMode.HALF_UP);
+                totalTax = totalTax.add(lineTax);
+            }
+            BigDecimal tax = totalTax;
             BigDecimal totalBeforeCoins = taxableAmount.add(tax).add(shipping);
             BigDecimal coinDeduction = coinsToRedeem.min(totalBeforeCoins);
             BigDecimal total = totalBeforeCoins.subtract(coinDeduction).max(BigDecimal.ZERO);
@@ -244,7 +290,8 @@ public class OrderServiceImpl implements OrderService {
         // Deduct reserved stock permanently
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         for (OrderItem item : items) {
-            inventoryService.deductReservedStock(item.getVariantId(), "DEFAULT_WH", item.getQuantity());
+            String deductWh = resolveWarehouseCode(null, null);
+            inventoryService.deductReservedStock(item.getVariantId(), deductWh, item.getQuantity());
         }
 
         log.info("Payment confirmed for order [{}]. Status transitioned to PAID and stock permanently deducted.",
@@ -279,7 +326,8 @@ public class OrderServiceImpl implements OrderService {
         if ("PENDING_PAYMENT".equalsIgnoreCase(order.getOrderStatus())) {
             List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
             for (OrderItem item : items) {
-                inventoryService.releaseStock(item.getVariantId(), "DEFAULT_WH", item.getQuantity());
+                String releaseWh = resolveWarehouseCode(null, null);
+                inventoryService.releaseStock(item.getVariantId(), releaseWh, item.getQuantity());
             }
         }
 
@@ -383,6 +431,9 @@ public class OrderServiceImpl implements OrderService {
         if (tierObj == null) {
             tierObj = pricingTiers.get("INR");
         }
+        if (tierObj == null) {
+            tierObj = pricingTiers.get("inr");
+        }
         if (tierObj == null && !pricingTiers.isEmpty()) {
             tierObj = pricingTiers.values().iterator().next();
         }
@@ -391,27 +442,66 @@ public class OrderServiceImpl implements OrderService {
             if (dto.mrp() != null) return dto.mrp();
         }
         if (tierObj instanceof Map<?, ?> map) {
-            Object salePrice = map.get("salePrice");
-            if (salePrice != null) {
-                try {
-                    return new BigDecimal(String.valueOf(salePrice));
-                } catch (Exception ignored) {}
+            for (String key : List.of("salePrice", "sale_price", "price", "amount", "mrp", "basePrice", "base_price")) {
+                Object val = map.get(key);
+                if (val != null) {
+                    try {
+                        return new BigDecimal(String.valueOf(val));
+                    } catch (Exception ignored) {}
+                }
             }
-            Object mrp = map.get("mrp");
-            if (mrp != null) {
-                try {
-                    return new BigDecimal(String.valueOf(mrp));
-                } catch (Exception ignored) {}
-            }
-            Object basePrice = map.get("basePrice");
-            if (basePrice != null) {
-                try {
-                    return new BigDecimal(String.valueOf(basePrice));
-                } catch (Exception ignored) {}
+        }
+        if (tierObj instanceof com.fasterxml.jackson.databind.JsonNode node) {
+            for (String key : List.of("salePrice", "sale_price", "price", "amount", "mrp", "basePrice", "base_price")) {
+                if (node.has(key) && !node.get(key).isNull()) {
+                    try {
+                        return new BigDecimal(node.get(key).asText());
+                    } catch (Exception ignored) {}
+                }
             }
         }
         if (tierObj instanceof Number num) {
-            return new BigDecimal(String.valueOf(num));
+            return BigDecimal.valueOf(num.doubleValue());
+        }
+        if (tierObj != null) {
+            // Support Scala Map / Vavr Map via reflection
+            try {
+                java.lang.reflect.Method getMethod = tierObj.getClass().getMethod("get", Object.class);
+                for (String key : List.of("salePrice", "sale_price", "price", "amount", "mrp", "basePrice", "base_price")) {
+                    Object opt = getMethod.invoke(tierObj, key);
+                    if (opt != null) {
+                        if (opt instanceof java.util.Optional<?> jOpt && jOpt.isPresent()) {
+                            return new BigDecimal(String.valueOf(jOpt.get()));
+                        }
+                        try {
+                            java.lang.reflect.Method isDefined = opt.getClass().getMethod("isDefined");
+                            if (Boolean.TRUE.equals(isDefined.invoke(opt))) {
+                                java.lang.reflect.Method getVal = opt.getClass().getMethod("get");
+                                return new BigDecimal(String.valueOf(getVal.invoke(opt)));
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            // Fallback string / regex parsing for Scala Map(key -> val) / custom objects
+            String tierStr = String.valueOf(tierObj);
+            for (String patternKey : List.of("salePrice", "sale_price", "price", "amount", "mrp", "basePrice", "base_price")) {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile(patternKey + "\\s*(?:->|=|:)\\s*([0-9.]+)").matcher(tierStr);
+                if (m.find()) {
+                    try {
+                        return new BigDecimal(m.group(1));
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        for (String key : List.of("salePrice", "sale_price", "price", "amount", "mrp")) {
+            Object val = pricingTiers.get(key);
+            if (val != null) {
+                try {
+                    return new BigDecimal(String.valueOf(val));
+                } catch (Exception ignored) {}
+            }
         }
         return new BigDecimal("149.00");
     }
@@ -427,6 +517,22 @@ public class OrderServiceImpl implements OrderService {
             String sku,
             BigDecimal unitPrice,
             int quantity,
-            BigDecimal totalAmount
+            BigDecimal totalAmount,
+            BigDecimal taxRate
     ) {}
+
+    private String resolveWarehouseCode(String requestedCode, StoreSettingsDto storeSettings) {
+        if (requestedCode != null && !requestedCode.isBlank()) {
+            return requestedCode.trim();
+        }
+        if (storeSettings == null) {
+            try {
+                storeSettings = storeService.getStoreSettings();
+            } catch (Exception ignored) {}
+        }
+        if (storeSettings != null && storeSettings.getDefaultWarehouseCode() != null && !storeSettings.getDefaultWarehouseCode().isBlank()) {
+            return storeSettings.getDefaultWarehouseCode().trim();
+        }
+        return "DEFAULT_WH";
+    }
 }
