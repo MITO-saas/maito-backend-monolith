@@ -106,6 +106,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/payments/webhook/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/payments/initialize").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/payments/verify-signature").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/payments/verify-stripe-signature").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/fulfillment/webhooks/**").permitAll()
 
                 // Public Storefront Fulfillment Tracking
                 .requestMatchers(HttpMethod.GET, "/api/v1/fulfillment/track/**").permitAll()
