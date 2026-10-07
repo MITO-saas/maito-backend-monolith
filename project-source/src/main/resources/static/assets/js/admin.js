@@ -133,6 +133,10 @@ class MaitoAdminApp {
     this.switchTab(this.currentTab);
   }
 
+  apiFetch(url, options = {}) {
+    return this.apiCall(url, options);
+  }
+
   async apiCall(url, options = {}) {
     if (!options.headers) options.headers = {};
     options.headers['X-Tenant-ID'] = this.activeTenant;
@@ -150,8 +154,13 @@ class MaitoAdminApp {
     try {
       const res = await fetch(url, options);
       if (res.status === 401 || res.status === 403) {
-        this.showToast('Session expired or unauthorized. Please re-authenticate.', 'error');
-        this.logout();
+        const isCriticalAuth = url.includes('/api/v1/auth/me') || url.includes('/api/v1/auth/login');
+        if (isCriticalAuth) {
+          this.showToast('Session expired or unauthorized. Please re-authenticate.', 'error');
+          this.logout();
+        } else {
+          console.warn('Unauthorized sub-request suppressed from forcing logout: ' + url);
+        }
         throw new Error('Unauthorized');
       }
       const json = await res.json();
@@ -234,6 +243,9 @@ class MaitoAdminApp {
         break;
       case 'support':
         this.loadSupportTickets();
+        break;
+      case 'carriers':
+        this.loadCarriers();
         break;
     }
 
@@ -518,6 +530,11 @@ class MaitoAdminApp {
                           </span>
                         </td>
                         <td class="py-4 px-4 text-right space-x-1.5 whitespace-nowrap">
+                          ${order.orderStatus === 'PENDING_PAYMENT' || order.orderStatus === 'CREATED' || order.orderStatus === 'PROCESSING' ? `
+                            <button onclick="adminApp.cancelOrder('${order.id}')" class="px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-all">
+                              Cancel
+                            </button>
+                          ` : ''}
                           ${order.orderStatus === 'PAID' || order.orderStatus === 'CREATED' ? `
                             <button onclick="adminApp.updateOrderStatus('${order.id}', 'PROCESSING')" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold rounded-lg transition-colors">
                               Process
@@ -692,7 +709,7 @@ class MaitoAdminApp {
     const variantId = document.getElementById('stock-variant-id').value;
     const delta = parseInt(document.getElementById('stock-delta-input').value, 10);
     const reason = document.getElementById('stock-reason-input').value.trim() || 'Manual Admin Replenishment';
-    const warehouseCode = 'WH-CENTRAL-01';
+    const warehouseCode = 'DEFAULT_WH';
 
     try {
       const res = await this.apiCall('/api/v1/admin/inventory/adjust', {
@@ -1205,10 +1222,124 @@ class MaitoAdminApp {
       setTimeout(() => toast.remove(), 300);
     }, 3500);
   }
+  // -------------------------------------------------------------
+  // TAB 7: 3PL LOGISTICS & CARRIERS MANAGEMENT
+  // -------------------------------------------------------------
+  async cancelOrder(orderId) {
+    if (!confirm('Are you sure you want to cancel this order?')) return;
+    try {
+      await this.apiCall(`/api/v1/admin/orders/${orderId}/cancel`, {
+        method: 'POST'
+      });
+      this.showToast('Order cancelled successfully.', 'success');
+      this.loadOrders(document.getElementById('orders-status-filter')?.value || '');
+    } catch (err) {
+      // Fallback to order status update
+      try {
+        await this.apiCall(`/api/v1/admin/orders/${orderId}/status`, {
+          method: 'PUT',
+          body: { status: 'CANCELLED' }
+        });
+        this.showToast('Order cancelled successfully.', 'success');
+        this.loadOrders(document.getElementById('orders-status-filter')?.value || '');
+      } catch (fallbackErr) {
+        this.showToast('Failed to cancel order: ' + err.message, 'error');
+      }
+    }
+  }
+
+  async loadCarriers() {
+    const container = document.getElementById('carrier-cards-container');
+    if (!container) return;
+    container.innerHTML = '<div class="p-8 text-center text-slate-400 col-span-2"><span class="animate-spin inline-block mr-2">⏳</span> Loading carrier configurations...</div>';
+    try {
+      const res = await this.apiFetch('/api/v1/admin/fulfillment/carriers');
+      const carriers = res.data || [];
+      if (carriers.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-slate-400 col-span-2">No carriers configured for this tenant.</div>';
+        return;
+      }
+      container.innerHTML = carriers.map(c => `
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center font-black text-amber-700 text-sm">
+                  ${(c.carrierType || 'CR').substring(0, 2)}
+                </div>
+                <div>
+                  <h3 class="font-bold text-slate-900 text-base">${c.carrierType}</h3>
+                  <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">3PL Fulfillment Provider</span>
+                </div>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" ${c.isEnabled ? 'checked' : ''} onchange="adminApp.toggleCarrier('${c.carrierType}', this.checked)" class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+              </label>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-xl space-y-3 mb-4 text-xs">
+              <div>
+                <span class="text-slate-400 block font-semibold">Active Client / Service:</span>
+                <span class="font-mono font-bold text-slate-800">${c.settings?.client || c.settings?.pickupLocation || 'DEFAULT'}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block font-semibold">Hub Location:</span>
+                <span class="font-mono text-slate-700">${c.settings?.pickupLocation || 'DELHIVERY_PATNA_DC'}</span>
+              </div>
+            </div>
+          </div>
+          <button onclick="adminApp.promptEditCarrier('${c.carrierType}')" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-all">
+            Configure Settings & Keys
+          </button>
+        </div>
+      `).join('');
+      if (window.lucide) lucide.createIcons();
+    } catch (err) {
+      container.innerHTML = `<div class="p-8 text-center text-red-500 col-span-2">Failed to load carriers: ${err.message}</div>`;
+    }
+  }
+
+  async toggleCarrier(carrierType, isEnabled) {
+    try {
+      await this.apiFetch(`/api/v1/admin/fulfillment/carriers/${carrierType}`, {
+        method: 'PUT',
+        body: { isEnabled: isEnabled }
+      });
+      this.showToast(`${carrierType} status updated successfully.`, 'success');
+    } catch (e) {
+      this.showToast(`Failed to update ${carrierType}: ` + e.message, 'error');
+      this.loadCarriers();
+    }
+  }
+
+  async promptEditCarrier(carrierType) {
+    const hub = prompt(`Enter Pickup Hub / Warehouse Location for ${carrierType}:`, 'DELHIVERY_PATNA_DC');
+    if (hub === null) return;
+    try {
+      await this.apiFetch(`/api/v1/admin/fulfillment/carriers/${carrierType}`, {
+        method: 'PUT',
+        body: {
+          isEnabled: true,
+          settings: { pickupLocation: hub.trim() }
+        }
+      });
+      this.showToast(`${carrierType} updated successfully.`, 'success');
+      this.loadCarriers();
+    } catch (e) {
+      this.showToast(`Failed to configure ${carrierType}: ` + e.message, 'error');
+    }
+  }
+
 }
 
 // Global Singleton Initialization
 let adminApp;
-document.addEventListener('DOMContentLoaded', () => {
-  adminApp = new MaitoAdminApp();
-});
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    adminApp = new MaitoAdminApp();
+    if (typeof window !== 'undefined') window.adminApp = adminApp;
+  });
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { MaitoAdminApp };
+}
