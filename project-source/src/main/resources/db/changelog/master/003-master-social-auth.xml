@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Master Global Users Social Auth Schema -->
+    <changeSet id="001-alter-global-users-social-auth" author="maito-identity-architect" dbms="postgresql">
+        <comment>Make password_hash nullable and add auth_provider, provider_subject_id, avatar_url</comment>
+        <sql>
+            ALTER TABLE global_users ALTER COLUMN password_hash DROP NOT NULL;
+
+            ALTER TABLE global_users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(32) NOT NULL DEFAULT 'LOCAL';
+            ALTER TABLE global_users ADD COLUMN IF NOT EXISTS provider_subject_id VARCHAR(255);
+            ALTER TABLE global_users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(1024);
+
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_global_users_provider 
+            ON global_users (auth_provider, provider_subject_id) 
+            WHERE provider_subject_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -51,6 +51,90 @@ public class MasterIdentityTxService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public GlobalUserDto createOrGetSocialIdentity(String email, String provider, String providerSubjectId, String phone, String avatarUrl) {
+        String normalizedEmail = (email != null && !email.isBlank()) ? email.trim().toLowerCase() : (provider.toLowerCase() + "_" + providerSubjectId + "@social.maito.com");
+
+        // 1. Try finding by provider and providerSubjectId
+        if (providerSubjectId != null && !providerSubjectId.isBlank()) {
+            Optional<GlobalUser> existingByProvider = globalUserRepository.findByAuthProviderAndProviderSubjectId(provider, providerSubjectId);
+            if (existingByProvider.isPresent()) {
+                GlobalUser u = existingByProvider.get();
+                u.setLastLoginAt(Instant.now());
+                if (avatarUrl != null && (u.getAvatarUrl() == null || u.getAvatarUrl().isBlank())) {
+                    u.setAvatarUrl(avatarUrl);
+                }
+                return toDto(globalUserRepository.save(u));
+            }
+        }
+
+        // 2. Try finding by email
+        Optional<GlobalUser> existingByEmail = globalUserRepository.findByEmail(normalizedEmail);
+        if (existingByEmail.isPresent()) {
+            GlobalUser u = existingByEmail.get();
+            u.setLastLoginAt(Instant.now());
+            if (providerSubjectId != null && u.getProviderSubjectId() == null) {
+                u.setAuthProvider(provider);
+                u.setProviderSubjectId(providerSubjectId);
+            }
+            if (avatarUrl != null && (u.getAvatarUrl() == null || u.getAvatarUrl().isBlank())) {
+                u.setAvatarUrl(avatarUrl);
+            }
+            return toDto(globalUserRepository.save(u));
+        }
+
+        // 3. Create new user
+        GlobalUser newUser = GlobalUser.builder()
+                .email(normalizedEmail)
+                .passwordHash(null)
+                .phoneNumber(phone)
+                .authProvider(provider)
+                .providerSubjectId(providerSubjectId)
+                .avatarUrl(avatarUrl)
+                .accountStatus("ACTIVE")
+                .failedLoginAttempts(0)
+                .lastLoginAt(Instant.now())
+                .build();
+
+        GlobalUser saved = globalUserRepository.save(newUser);
+        log.info("Provisioned social identity in master DB: id={}, provider={}, email={}", saved.getId(), provider, saved.getEmail());
+        return toDto(saved);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public GlobalUserDto createOrGetPhoneIdentity(String phone) {
+        String normalizedPhone = phone.replaceAll("[^0-9+]", "");
+        Optional<GlobalUser> existingByPhone = globalUserRepository.findByPhoneNumber(normalizedPhone);
+        if (existingByPhone.isPresent()) {
+            GlobalUser u = existingByPhone.get();
+            u.setLastLoginAt(Instant.now());
+            return toDto(globalUserRepository.save(u));
+        }
+
+        String syntheticEmail = normalizedPhone.replace("+", "") + "@otp.maito.com";
+        Optional<GlobalUser> existingByEmail = globalUserRepository.findByEmail(syntheticEmail);
+        if (existingByEmail.isPresent()) {
+            GlobalUser u = existingByEmail.get();
+            u.setLastLoginAt(Instant.now());
+            return toDto(globalUserRepository.save(u));
+        }
+
+        GlobalUser newUser = GlobalUser.builder()
+                .email(syntheticEmail)
+                .passwordHash(null)
+                .phoneNumber(normalizedPhone)
+                .authProvider("PHONE_OTP")
+                .providerSubjectId(normalizedPhone)
+                .accountStatus("ACTIVE")
+                .failedLoginAttempts(0)
+                .lastLoginAt(Instant.now())
+                .build();
+
+        GlobalUser saved = globalUserRepository.save(newUser);
+        log.info("Provisioned phone OTP identity in master DB: id={}, phone={}", saved.getId(), normalizedPhone);
+        return toDto(saved);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Optional<GlobalUserDto> authenticate(String email, String rawPassword) {
         String normalizedEmail = email.trim().toLowerCase();
         Optional<GlobalUser> userOpt = globalUserRepository.findByEmail(normalizedEmail);
@@ -64,6 +148,11 @@ public class MasterIdentityTxService {
         if ("LOCKED".equalsIgnoreCase(user.getAccountStatus())) {
             log.warn("Authentication rejected: master account locked [{}]", normalizedEmail);
             throw new BusinessException(ErrorCode.ACCOUNT_LOCKED, "Account is locked due to excessive failed attempts");
+        }
+
+        if (user.getPasswordHash() == null) {
+            log.warn("Authentication failed: user [{}] registered via passwordless social/OTP auth", normalizedEmail);
+            return Optional.empty();
         }
 
         boolean matches = passwordEncoder.matches(rawPassword, user.getPasswordHash());
@@ -109,7 +198,10 @@ public class MasterIdentityTxService {
                 user.getFailedLoginAttempts(),
                 user.getLastLoginAt(),
                 user.getCreatedAt(),
-                user.getUpdatedAt()
+                user.getUpdatedAt(),
+                user.getAuthProvider() != null ? user.getAuthProvider() : "LOCAL",
+                user.getProviderSubjectId(),
+                user.getAvatarUrl()
         );
     }
 }

@@ -52,4 +52,14 @@ public class IdentityServiceImpl implements IdentityService {
     public Optional<GlobalUserDto> findById(UUID id) {
         return inMasterContext(() -> txService.findById(id));
     }
+
+    @Override
+    public GlobalUserDto createOrGetSocialIdentity(String email, String provider, String providerSubjectId, String phone, String avatarUrl) {
+        return inMasterContext(() -> txService.createOrGetSocialIdentity(email, provider, providerSubjectId, phone, avatarUrl));
+    }
+
+    @Override
+    public GlobalUserDto createOrGetPhoneIdentity(String phone) {
+        return inMasterContext(() -> txService.createOrGetPhoneIdentity(phone));
+    }
 }

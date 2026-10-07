@@ -36,9 +36,14 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public TenantProfileDto createProfile(UUID globalUserId, String firstName, String lastName, String role, List<String> permissions) {
-        Optional<TenantUserProfile> existing = profileRepository.findByGlobalUserId(globalUserId);
-        if (existing.isPresent()) {
-            return toDto(existing.get());
+        return createProfile(globalUserId, firstName, lastName, role, permissions, null);
+    }
+
+    @Override
+    @Transactional
+    public TenantProfileDto createProfile(UUID globalUserId, String firstName, String lastName, String role, List<String> permissions, String avatarUrl) {
+        if (profileRepository.findByGlobalUserId(globalUserId).isPresent()) {
+            throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "Profile already exists for global user: " + globalUserId);
         }
 
         TenantUserProfile profile = TenantUserProfile.builder()
@@ -47,6 +52,7 @@ public class UserServiceImpl implements UserService {
                 .lastName(lastName)
                 .role(role)
                 .permissionMatrix(permissions != null ? new ArrayList<>(permissions) : new ArrayList<>())
+                .avatarUrl(avatarUrl)
                 .isActive(true)
                 .build();
 
@@ -119,7 +125,8 @@ public class UserServiceImpl implements UserService {
                 p.getPermissionMatrix() != null ? List.copyOf(p.getPermissionMatrix()) : List.of(),
                 p.isActive(),
                 p.getCreatedAt(),
-                p.getUpdatedAt()
+                p.getUpdatedAt(),
+                p.getAvatarUrl()
         );
     }
 

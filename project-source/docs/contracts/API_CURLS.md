@@ -1191,3 +1191,67 @@ curl -X GET "http://mitocrunch.maito.io/api/v1/catalog/products" \
 curl -X GET "http://localhost/api/v1/catalog/products" \
   -H "Accept: application/json"
 ```
+
+---
+
+# SECTION 13: OBSERVABILITY, METRICS & DISTRIBUTED TRACING (PHASE 13)
+
+### 1. Scrape Prometheus Metrics (Internal / Admin)
+```bash
+curl -X GET "http://localhost:8080/actuator/prometheus" \
+  -H "Accept: text/plain"
+```
+
+**Response (Sample OpenMetrics):**
+```
+# HELP http_server_requests_seconds Duration of HTTP server request handling
+# TYPE http_server_requests_seconds summary
+http_server_requests_seconds_count{application="maito-backend-monolith",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",tenant="mito_crunch",uri="/api/v1/catalog/products"} 12.0
+http_server_requests_seconds_sum{application="maito-backend-monolith",error="none",exception="none",method="GET",outcome="SUCCESS",status="200",tenant="mito_crunch",uri="/api/v1/catalog/products"} 0.142
+```
+
+### 2. Query Specific HTTP Request Metric
+```bash
+curl -X GET "http://localhost:8080/actuator/metrics/http.server.requests" \
+  -H "Accept: application/json"
+```
+
+### 3. Query Custom Business Metrics (Domain Counters & Gauges)
+```bash
+# Order Creation Counter
+curl -X GET "http://localhost:8080/actuator/metrics/maito.orders.created" \
+  -H "Accept: application/json"
+
+# GMV Revenue Total
+curl -X GET "http://localhost:8080/actuator/metrics/maito.gmv.revenue" \
+  -H "Accept: application/json"
+
+# Rate Limit Rejections Total
+curl -X GET "http://localhost:8080/actuator/metrics/maito.rate.limit.rejections" \
+  -H "Accept: application/json"
+```
+
+### 4. Query HikariCP Database Pool Metrics
+```bash
+curl -X GET "http://localhost:8080/actuator/metrics/hikaricp.connections.active?tag=pool:db_mitocrunch" \
+  -H "Accept: application/json"
+```
+
+### 5. Multi-Tenant Tagged Request Verification
+```bash
+# Request tagged for Mito Crunch
+curl -X GET "http://localhost:8080/api/v1/catalog/products" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+
+# Request tagged for Vijiyasolar
+curl -X GET "http://localhost:8080/api/v1/catalog/products" \
+  -H "X-Tenant-ID: vijiyasolar" \
+  -H "Accept: application/json"
+```
+
+### 6. Health Probes (Public)
+```bash
+curl -X GET "http://localhost:8080/actuator/health/readiness"
+curl -X GET "http://localhost:8080/actuator/health/liveness"
+```

@@ -1,7 +1,8 @@
 /**
  * Maito Storefront Client State Manager
  * Provides reactive session state, JWT auth management, cart operations,
- * wallet/loyalty coin integration, checkout flow, and fulfillment tracking.
+ * wallet/loyalty coin integration, customer address management, store settings,
+ * checkout flow, and fulfillment tracking.
  */
 class MaitoStore {
   constructor() {
@@ -13,6 +14,8 @@ class MaitoStore {
     this.appliedCoupon = null;
     this.wallet = { balance: 0.00, currencyCode: 'INR', isActive: true };
     this.coinsToRedeem = 0;
+    this.savedAddresses = [];
+    this.storeSettings = null;
     this.listeners = [];
   }
 
@@ -24,7 +27,13 @@ class MaitoStore {
   }
 
   notify(event, data) {
-    this.listeners.forEach(fn => fn(event, data));
+    this.listeners.forEach(fn => {
+      try {
+        fn(event, data);
+      } catch (e) {
+        console.error('Store listener error:', e);
+      }
+    });
   }
 
   getOrCreateCartId() {
@@ -41,7 +50,9 @@ class MaitoStore {
   getStoredProfile() {
     try {
       const saved = localStorage.getItem('maito_user_profile');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved || saved === 'undefined' || saved === 'null') return null;
+      const parsed = JSON.parse(saved);
+      return (parsed && typeof parsed === 'object') ? parsed : null;
     } catch (e) {
       return null;
     }
@@ -94,20 +105,15 @@ class MaitoStore {
 
     if (res.success && res.data) {
       this.authToken = res.data.accessToken;
-      this.userProfile = res.data.userProfile;
-      localStorage.setItem('maito_auth_token', this.authToken);
-      localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
-
-      // Attempt to merge guest cart into customer account
-      try {
-        await this.mergeCart();
-      } catch (e) {
-        console.warn('Cart merge notice:', e.message);
+      this.userProfile = res.data.profile || res.data.userProfile || null;
+      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.userProfile) {
+        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+      } else {
+        localStorage.removeItem('maito_user_profile');
       }
 
-      await this.fetchCart();
-      await this.fetchWalletBalance();
-      this.notify('AUTH_CHANGED', { authenticated: true, user: this.userProfile });
+      await this.onAuthSuccess();
       return res.data;
     }
     throw new Error(res.message || 'Login failed');
@@ -121,28 +127,111 @@ class MaitoStore {
 
     if (res.success && res.data) {
       this.authToken = res.data.accessToken;
-      this.userProfile = res.data.userProfile;
-      localStorage.setItem('maito_auth_token', this.authToken);
-      localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
-
-      try {
-        await this.mergeCart();
-      } catch (e) {
-        console.warn('Cart merge notice:', e.message);
+      this.userProfile = res.data.profile || res.data.userProfile || null;
+      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.userProfile) {
+        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+      } else {
+        localStorage.removeItem('maito_user_profile');
       }
 
-      await this.fetchCart();
-      await this.fetchWalletBalance();
-      this.notify('AUTH_CHANGED', { authenticated: true, user: this.userProfile });
+      await this.onAuthSuccess();
       return res.data;
     }
     throw new Error(res.message || 'Registration failed');
+  }
+
+  // --- SOCIAL & OTP AUTHENTICATION ---
+  async loginWithSocial(provider, idToken) {
+    const res = await this.apiFetch('/api/v1/auth/social-login', {
+      method: 'POST',
+      body: {
+        provider: provider.toUpperCase(),
+        idToken,
+        guestCartId: this.cartId
+      }
+    });
+
+    if (res.success && res.data) {
+      this.authToken = res.data.accessToken;
+      this.userProfile = res.data.profile || res.data.userProfile || null;
+      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.userProfile) {
+        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+      } else {
+        localStorage.removeItem('maito_user_profile');
+      }
+
+      await this.onAuthSuccess();
+      return res.data;
+    }
+    throw new Error(res.message || 'Social sign-in failed');
+  }
+
+  async loginWithGoogle(credential) {
+    return this.loginWithSocial('GOOGLE', credential || 'mock-google-token-customer@mitocrunch.com');
+  }
+
+  async loginWithFacebook(credential) {
+    return this.loginWithSocial('FACEBOOK', credential || 'mock-facebook-token-customer@mitocrunch.com');
+  }
+
+  async sendOtp(phone) {
+    const res = await this.apiFetch('/api/v1/auth/otp/send', {
+      method: 'POST',
+      body: { phone }
+    });
+    if (res.success && res.data) {
+      return res.data;
+    }
+    throw new Error(res.message || 'Failed to send OTP');
+  }
+
+  async verifyOtp(phone, code) {
+    const res = await this.apiFetch('/api/v1/auth/otp/verify', {
+      method: 'POST',
+      body: {
+        phone,
+        code,
+        guestCartId: this.cartId
+      }
+    });
+
+    if (res.success && res.data) {
+      this.authToken = res.data.accessToken;
+      this.userProfile = res.data.profile || res.data.userProfile || null;
+      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.userProfile) {
+        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+      } else {
+        localStorage.removeItem('maito_user_profile');
+      }
+
+      await this.onAuthSuccess();
+      return res.data;
+    }
+    throw new Error(res.message || 'OTP verification failed');
+  }
+
+  async onAuthSuccess() {
+    // Attempt to merge guest cart into customer account
+    try {
+      await this.mergeCart();
+    } catch (e) {
+      console.warn('Cart merge notice:', e.message);
+    }
+
+    await this.fetchCart();
+    await this.fetchWalletBalance();
+    await this.fetchSavedAddresses();
+    this.notify('AUTH_CHANGED', { authenticated: true, user: this.userProfile });
   }
 
   logout() {
     this.authToken = null;
     this.userProfile = null;
     this.appliedCoupon = null;
+    this.savedAddresses = [];
     this.wallet = { balance: 0.00, currencyCode: 'INR', isActive: true };
     this.coinsToRedeem = 0;
     localStorage.removeItem('maito_auth_token');
@@ -156,6 +245,7 @@ class MaitoStore {
     this.notify('AUTH_CHANGED', { authenticated: false, user: null });
     this.notify('CART_UPDATED', this.cart);
     this.notify('WALLET_UPDATED', this.wallet);
+    this.notify('ADDRESSES_UPDATED', this.savedAddresses);
   }
 
   // --- WALLET OPERATIONS ---
@@ -177,6 +267,77 @@ class MaitoStore {
   setCoinsToRedeem(amount) {
     this.coinsToRedeem = Math.max(0, Number(amount) || 0);
     this.notify('CART_UPDATED', this.cart);
+  }
+
+  // --- ADDRESS OPERATIONS ---
+  async fetchSavedAddresses() {
+    if (!this.isAuthenticated()) {
+      this.savedAddresses = [];
+      return this.savedAddresses;
+    }
+    try {
+      const res = await this.apiFetch('/api/v1/account/addresses');
+      if (res.success && res.data) {
+        this.savedAddresses = Array.isArray(res.data) ? res.data : [];
+        this.notify('ADDRESSES_UPDATED', this.savedAddresses);
+        return this.savedAddresses;
+      }
+    } catch (err) {
+      console.warn('Fetch saved addresses error:', err.message);
+    }
+    return this.savedAddresses;
+  }
+
+  async saveAddress(addressData) {
+    if (!this.isAuthenticated()) {
+      throw new Error('Please sign in to save an address to your profile');
+    }
+    const payload = {
+      addressType: addressData.addressType || 'SHIPPING',
+      recipientName: addressData.recipientName || addressData.name || '',
+      phone: addressData.phone || '',
+      addressLine1: addressData.addressLine1 || addressData.line1 || addressData.street || '',
+      addressLine2: addressData.addressLine2 || addressData.line2 || '',
+      city: addressData.city || '',
+      state: addressData.state || '',
+      postalCode: addressData.postalCode || addressData.pincode || '',
+      countryCode: addressData.countryCode || 'IN',
+      isDefault: !!addressData.isDefault
+    };
+
+    const res = await this.apiFetch('/api/v1/account/addresses', {
+      method: 'POST',
+      body: payload
+    });
+
+    if (res.success && res.data) {
+      await this.fetchSavedAddresses();
+      return res.data;
+    }
+    throw new Error(res.message || 'Failed to save address');
+  }
+
+  // --- STORE SETTINGS & FORMATTING ---
+  async fetchStoreSettings() {
+    try {
+      const res = await this.apiFetch('/api/v1/store/settings');
+      if (res.success && res.data) {
+        this.storeSettings = res.data;
+        return this.storeSettings;
+      }
+    } catch (err) {
+      console.warn('Fetch store settings notice:', err.message);
+    }
+    return this.storeSettings;
+  }
+
+  formatCurrency(amount) {
+    const currency = (this.storeSettings && this.storeSettings.baseCurrency) || 'INR';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency,
+      maximumFractionDigits: 2
+    }).format(Number(amount) || 0);
   }
 
   // --- CART OPERATIONS ---
@@ -287,7 +448,10 @@ class MaitoStore {
     const subtotal = Number(this.cart.subtotalAmount || this.cart.subtotal || 0);
     const discount = this.appliedCoupon ? Number(this.appliedCoupon.discountAmount || 0) : 0;
     const freeShipping = this.appliedCoupon ? Number(this.appliedCoupon.freeShippingSavings || 0) > 0 : false;
-    const shipping = (subtotal >= 499 || freeShipping) ? 0 : 49;
+    const threshold = (this.storeSettings && this.storeSettings.commercialSettings && this.storeSettings.commercialSettings.freeShippingThreshold) 
+      ? Number(this.storeSettings.commercialSettings.freeShippingThreshold) 
+      : 499;
+    const shipping = (subtotal >= threshold || freeShipping) ? 0 : 49;
     const totalBeforeCoins = Math.max(0, subtotal - discount + shipping);
     const coinsRedeemed = Math.min(this.coinsToRedeem, totalBeforeCoins);
     const total = Math.max(0, totalBeforeCoins - coinsRedeemed);
