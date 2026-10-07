@@ -6,6 +6,7 @@ import com.maito.tenant.routing.TenantContextHolder;
 import com.maito.tenant.routing.TenantContext;
 import com.maito.tenant.repository.GlobalTenantRepository;
 import com.zaxxer.hikari.HikariConfig;
+import io.micrometer.core.instrument.MeterRegistry;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import jakarta.annotation.PostConstruct;
@@ -43,6 +44,8 @@ public class HikariPoolManager {
     private final ConcurrentHashMap<String, HikariDataSource> poolRegistry = new ConcurrentHashMap<>();
     private final DynamicTenantRoutingDataSource routingDataSource;
     private final GlobalTenantRepository tenantRepository;
+    @Autowired(required = false)
+    private MeterRegistry meterRegistry;
 
     public HikariPoolManager(
             DynamicTenantRoutingDataSource routingDataSource,
@@ -131,6 +134,9 @@ public synchronized HikariDataSource getOrCreateTenantPool(
 
         HikariConfig config = new HikariConfig();
         config.setPoolName("HikariPool-Tenant-" + tenantId);
+        if (meterRegistry != null) {
+            config.setMetricRegistry(meterRegistry);
+        }
         config.setJdbcUrl(jdbcUrl);
         config.setUsername(username);
         config.setPassword(password);

@@ -1,0 +1,395 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "title": "Multi-Tenant Traffic & SLA Performance",
+      "type": "row"
+    },
+    {
+      "id": 1,
+      "title": "Panel 1: Multi-Tenant Request Rate (RPS by Tenant & Status)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (tenant, status) (rate(http_server_requests_seconds_count[1m]))",
+          "legendFormat": "{{tenant}} (status: {{status}})",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "opacity"
+          },
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Panel 2: P95 & P99 Latency Across Endpoints",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[1m])) by (le, uri))",
+          "legendFormat": "P95 {{uri}}",
+          "range": true,
+          "refId": "P95"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[1m])) by (le, uri))",
+          "legendFormat": "P99 {{uri}}",
+          "range": true,
+          "refId": "P99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2
+          },
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 101,
+      "title": "Rate Limiting & Infrastructure Resilience",
+      "type": "row"
+    },
+    {
+      "id": 3,
+      "title": "Panel 3: Rate Limiting Blocks (HTTP 429 Trigger Spikes)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (tenant, route_group) (rate(maito_rate_limit_rejections_total[1m]))",
+          "legendFormat": "{{tenant}} - {{route_group}} blocks",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (tenant) (rate(http_server_requests_seconds_count{status=\"429\"}[1m]))",
+          "legendFormat": "{{tenant}} 429 HTTP errors",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60
+          },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Panel 4: Active vs. Idle DB Connections per HikariCP Pool",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "hikaricp_connections_active",
+          "legendFormat": "Active: {{pool}}",
+          "range": true,
+          "refId": "Active"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "hikaricp_connections_idle",
+          "legendFormat": "Idle: {{pool}}",
+          "range": true,
+          "refId": "Idle"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "hikaricp_connections_pending",
+          "legendFormat": "Pending: {{pool}}",
+          "range": true,
+          "refId": "Pending"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2
+          },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 102,
+      "title": "JVM Health & Domain Business Telemetry",
+      "type": "row"
+    },
+    {
+      "id": 5,
+      "title": "Panel 5: JVM Memory Usage & Garbage Collection Pauses",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "jvm_memory_used_bytes{area=\"heap\"}",
+          "legendFormat": "Heap Used ({{id}})",
+          "range": true,
+          "refId": "HeapUsed"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "jvm_memory_max_bytes{area=\"heap\"}",
+          "legendFormat": "Heap Max",
+          "range": true,
+          "refId": "HeapMax"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "rate(jvm_gc_pause_seconds_sum[1m])",
+          "legendFormat": "GC Pause Rate ({{action}})",
+          "range": true,
+          "refId": "GCPause"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2
+          },
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Panel 6: Live Order Velocity & Cumulative Revenue",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (tenant) (rate(maito_orders_created_total[1m]))",
+          "legendFormat": "Orders/sec: {{tenant}}",
+          "range": true,
+          "refId": "OrderVelocity"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (tenant) (maito_gmv_revenue_total)",
+          "legendFormat": "Gross Revenue (₹): {{tenant}}",
+          "range": true,
+          "refId": "Revenue"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2
+          },
+          "unit": "currencyINR"
+        }
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": [
+    "maito",
+    "production",
+    "observability",
+    "multi-tenant"
+  ],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Maito Platform - Multi-Tenant Executive Observability",
+  "uid": "maito-exec-dash",
+  "version": 1
+}
