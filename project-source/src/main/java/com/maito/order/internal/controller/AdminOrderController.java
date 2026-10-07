@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -47,5 +48,14 @@ public class AdminOrderController {
     ) {
         OrderResponse response = orderService.updateOrderStatus(orderId, cmd.status());
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @PostMapping("/{orderId}/cancel")
+    @Operation(summary = "Cancel order and release reserved stock (Admin only)")
+    public ResponseEntity<ApiResponse<Void>> cancelOrder(
+            @PathVariable UUID orderId
+    ) {
+        orderService.cancelOrder(orderId);
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 }
