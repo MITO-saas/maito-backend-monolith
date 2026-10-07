@@ -1,0 +1,78 @@
+{
+  "baseUrl": "http://localhost:8080",
+  "ingressUrl": "https://mito-crunch.maito.io",
+  "defaultTenant": "mito_crunch",
+  "defaultHeaders": {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "X-Tenant-ID": "mito_crunch"
+  },
+  "thresholds": {
+    "http_req_duration{type:read}": [
+      "p(95)<150"
+    ],
+    "http_req_duration{type:write}": [
+      "p(99)<350"
+    ],
+    "http_req_failed": [
+      "rate<0.01"
+    ],
+    "checks": [
+      "rate>0.99"
+    ]
+  },
+  "scenarios": {
+    "flash_sale": {
+      "executor": "ramping-vus",
+      "startVUs": 0,
+      "stages": [
+        {
+          "duration": "30s",
+          "target": 2000
+        },
+        {
+          "duration": "1m",
+          "target": 10000
+        },
+        {
+          "duration": "1m",
+          "target": 10000
+        },
+        {
+          "duration": "30s",
+          "target": 0
+        }
+      ],
+      "gracefulRampDown": "30s"
+    },
+    "browse_and_search": {
+      "executor": "constant-arrival-rate",
+      "rate": 5000,
+      "timeUnit": "1s",
+      "duration": "5m",
+      "preAllocatedVUs": 500,
+      "maxVUs": 2000
+    },
+    "rate_limiter_stress": {
+      "executor": "ramping-arrival-rate",
+      "startRate": 100,
+      "timeUnit": "1s",
+      "stages": [
+        {
+          "duration": "20s",
+          "target": 1000
+        },
+        {
+          "duration": "40s",
+          "target": 3000
+        },
+        {
+          "duration": "20s",
+          "target": 0
+        }
+      ],
+      "preAllocatedVUs": 200,
+      "maxVUs": 1000
+    }
+  }
+}

@@ -1392,3 +1392,72 @@ curl -X GET "https://mito-crunch.maito.io/api/v1/admin/orders" \
 ```bash
 curl -Iv --resolve "mito-crunch.maito.io:443:127.0.0.1" "https://mito-crunch.maito.io/actuator/health/liveness"
 ```
+
+
+---
+
+## SECTION 17: CI/CD PIPELINE & DEPLOYMENT HEALTH VERIFICATION
+
+### 1. Trigger Manual Deployment via GitHub Actions REST API
+```bash
+curl -X POST "https://api.github.com/repos/MITO-saas/maito-backend-monolith/actions/workflows/cd-deploy-helm.yml/dispatches" \
+  -H "Authorization: Bearer <GITHUB_PAT>" \
+  -H "Accept: application/vnd.github.v3+json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ref": "uat",
+    "inputs": {
+      "environment": "staging"
+    }
+  }'
+```
+
+### 2. Inspect Published Image Manifest in GitHub Container Registry
+```bash
+curl -X GET "https://ghcr.io/v2/mito-saas/maito-backend-monolith/tags/list" \
+  -H "Authorization: Bearer <GHCR_TOKEN>" \
+  -H "Accept: application/json"
+```
+
+### 3. Verify Staging Health Post-Rollout
+```bash
+curl -X GET "https://staging.maito.io/actuator/health/readiness" \
+  -H "Accept: application/json"
+```
+
+### 4. Verify Production High-Availability Cluster State Post-Rollout
+```bash
+curl -X GET "https://maito.io/actuator/info" \
+  -H "Accept: application/json"
+```
+
+
+---
+
+## SECTION 18: LOAD, CONCURRENCY & CHAOS TESTING TELEMETRY
+
+### 1. Flash Sale Real-Time Metrics Probe (Actuator Prometheus)
+```bash
+curl -X GET "http://localhost:8080/actuator/prometheus" \
+  -H "Accept: text/plain" | grep -E "orders_created|stock_reservation|http_server_requests_seconds"
+```
+
+### 2. Rate Limiter Burst Test (Verify HTTP 429 & Retry-After Header)
+```bash
+for i in {1..20}; do
+  curl -s -o /dev/null -w "Request $i: HTTP %{http_code}
+" \
+    -H "X-Tenant-ID: mito_crunch" \
+    "http://localhost:8080/actuator/info"
+done
+```
+
+### 3. Apply Chaos Mesh Experiment to Staging / Production Cluster
+```bash
+kubectl apply -f tests/chaos/experiments/redis-failure.yaml -n maito-prod
+```
+
+### 4. Inspect Active Chaos Experiments Status
+```bash
+kubectl get podchaos,networkchaos -n maito-prod
+```

@@ -1,0 +1,19 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: redis-failure-experiment
+  namespace: maito-prod
+  labels:
+    tier: chaos-resilience
+    app.kubernetes.io/name: maito-monolith
+spec:
+  action: pod-failure
+  mode: all
+  duration: '60s'
+  selector:
+    namespaces:
+      - maito-prod
+    labelSelectors:
+      app: maito-redis
+  scheduler:
+    cron: '@every 10m'
