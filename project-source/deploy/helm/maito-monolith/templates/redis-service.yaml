@@ -1,0 +1,17 @@
+{{- if .Values.redis.inCluster }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.redis.host }}
+  namespace: {{ .Values.namespace.name | default "maito-prod" }}
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.redis.port }}
+      targetPort: 6379
+      name: redis
+  selector:
+    app.kubernetes.io/name: redis
+{{- end }}

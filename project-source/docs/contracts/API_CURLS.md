@@ -1357,3 +1357,38 @@ curl -X POST "http://localhost:8080/api/v1/admin/search/reindex" \
   -H "Authorization: Bearer <TENANT_ADMIN_JWT>" \
   -H "Content-Type: application/json"
 ```
+
+
+---
+
+## SECTION 16: KUBERNETES INGRESS & MULTI-TENANT WILDCARD ROUTING
+
+### 1. Root Domain Public Health & Platform Info
+```bash
+curl -X GET "https://maito.io/actuator/info" \
+  -H "Accept: application/json"
+```
+
+### 2. Multi-Tenant Storefront Catalog Query via Wildcard Subdomain
+```bash
+curl -X GET "https://mito-crunch.maito.io/api/v1/search/products?q=peri+peri" \
+  -H "Accept: application/json"
+```
+
+### 3. Tenant Actuator Readiness Probe via Ingress
+```bash
+curl -X GET "https://mito-crunch.maito.io/actuator/health/readiness" \
+  -H "Accept: application/json"
+```
+
+### 4. Admin API Endpoint via Dedicated Tenant Subdomain
+```bash
+curl -X GET "https://mito-crunch.maito.io/api/v1/admin/orders" \
+  -H "Authorization: Bearer <TENANT_ADMIN_JWT>" \
+  -H "Accept: application/json"
+```
+
+### 5. Ingress SSL/TLS Certificate Verification (SNI Inspection)
+```bash
+curl -Iv --resolve "mito-crunch.maito.io:443:127.0.0.1" "https://mito-crunch.maito.io/actuator/health/liveness"
+```

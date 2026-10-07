@@ -1,0 +1,73 @@
+# Production Values for maito-monolith on AWS EKS / GCP GKE.
+# Configured for managed cloud data services and enterprise high availability.
+
+replicaCount: 3
+
+image:
+  repository: 123456789012.dkr.ecr.ap-south-1.amazonaws.com/maito-backend-monolith
+  pullPolicy: IfNotPresent
+  tag: "v15.0.0"
+
+resources:
+  requests:
+    cpu: 1000m
+    memory: 1024Mi
+  limits:
+    cpu: 2000m
+    memory: 2048Mi
+
+hpa:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+pdb:
+  enabled: true
+  minAvailable: 2
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: maito.io
+  tlsSecretName: maito-wildcard-tls
+
+certManager:
+  enabled: true
+  email: admin@maito.io
+  server: https://acme-v02.api.letsencrypt.org/directory
+
+# Managed Cloud Data Stores (AWS RDS Aurora, ElastiCache, OpenSearch)
+postgresql:
+  inCluster: false
+  host: maito-aurora-cluster.c7xyz.ap-south-1.rds.amazonaws.com
+  port: 5432
+  database: maito_db
+  user: maito_master_user
+  password: "" # Loaded via ExternalSecrets / AWS Secrets Manager
+
+redis:
+  inCluster: false
+  host: maito-elasticache.xyz.clustercfg.aps1.cache.amazonaws.com
+  port: 6379
+  password: "" # Loaded via ExternalSecrets / AWS Secrets Manager
+
+elasticsearch:
+  inCluster: false
+  host: https://search-maito-opensearch-xyz.ap-south-1.es.amazonaws.com
+  port: 443
+
+env:
+  SPRING_PROFILES_ACTIVE: prod
+  MAITO_RATE_LIMITING_ENABLED: "true"
+  JWT_SECRET: "" # Loaded via AWS Secrets Manager
+  ZIPKIN_ENDPOINT: "http://tempo-distributor.monitoring.svc.cluster.local:9411/api/v2/spans"

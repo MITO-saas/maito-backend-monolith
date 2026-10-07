@@ -1,0 +1,43 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: maito-monolith-hpa
+  namespace: maito-prod
+  labels:
+    app.kubernetes.io/name: maito-monolith
+    app.kubernetes.io/part-of: maito-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: maito-monolith
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: maito-monolith-pdb
+  namespace: maito-prod
+  labels:
+    app.kubernetes.io/name: maito-monolith
+    app.kubernetes.io/part-of: maito-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: maito-monolith
+      app.kubernetes.io/component: backend-monolith
