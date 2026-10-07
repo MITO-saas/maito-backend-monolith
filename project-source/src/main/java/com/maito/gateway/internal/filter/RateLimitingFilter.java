@@ -3,6 +3,10 @@ package com.maito.gateway.internal.filter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maito.shared.api.ApiResponse;
 import com.maito.shared.exception.ErrorCode;
+import com.maito.observability.service.BusinessMetricsService;
+import com.maito.tenant.routing.TenantContext;
+import com.maito.tenant.routing.TenantContextHolder;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -52,6 +56,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();
+    private BusinessMetricsService businessMetricsService;
+
+    @Autowired(required = false)
+    public void setBusinessMetricsService(BusinessMetricsService businessMetricsService) {
+        this.businessMetricsService = businessMetricsService;
+    }
 
     public RateLimitingFilter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -108,6 +118,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         if (!bucket.tryConsume()) {
             log.warn("Rate limit exceeded for IP [{}] on route group [{}] path [{}]", clientIp, routeGroup.name(), path);
+            if (businessMetricsService != null) {
+                String tenant = resolveTenant(request);
+                businessMetricsService.recordRateLimitRejection(tenant, routeGroup.name());
+            }
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
@@ -202,5 +216,20 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                 lastRefillNanos = now;
             }
         }
+    }
+
+    private String resolveTenant(HttpServletRequest request) {
+        TenantContext ctx = TenantContextHolder.get();
+        if (ctx != null && ctx.tenantId() != null && !ctx.tenantId().isBlank()) {
+            return ctx.tenantId();
+        }
+        if (request != null) {
+            String header = request.getHeader("X-Tenant-ID");
+            if (header != null && !header.isBlank()) {
+                if ("mitocrunch".equalsIgnoreCase(header.trim())) return "mito_crunch";
+                return header.trim().toLowerCase();
+            }
+        }
+        return "system";
     }
 }

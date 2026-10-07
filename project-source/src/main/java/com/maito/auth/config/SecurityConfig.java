@@ -69,17 +69,26 @@ public class SecurityConfig {
                     "/swagger-resources/**",
                     "/webjars/**",
                     "/actuator/health/**",
-                    "/actuator/**",
+                    "/actuator/health",
+                    "/actuator/info",
                     "/api/v1/health/**",
                     "/api/v1/health",
                     "/api/v1/help/**",
                     "/api/v1/help",
                     "/api/v1/auth/login",
+                    "/api/v1/auth/social-login",
+                    "/api/v1/auth/otp/send",
+                    "/api/v1/auth/otp/verify",
                     "/api/v1/auth/register",
                     "/api/v1/auth/refresh",
                     "/api/v1/internal/platform/**",
                     "/error"
                 ).permitAll()
+
+                // Protected Actuator Ingress (Prometheus & Metrics restricted to internal network or admin)
+                .requestMatchers("/actuator/prometheus", "/actuator/metrics", "/actuator/metrics/**")
+                    .access(internalOrAdminAuthorizationManager())
+                .requestMatchers("/actuator/**").hasAnyRole("TENANT_ADMIN", "ADMIN")
                 // Public Storefront Layouts
                 .requestMatchers(HttpMethod.GET, "/api/v1/cms/pages/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/catalog/**").permitAll()
@@ -150,5 +159,46 @@ public class SecurityConfig {
             ApiResponse<Void> apiResponse = ApiResponse.fail("ACCESS_DENIED", "Access denied: insufficient privileges");
             response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
         };
+    }
+
+    private org.springframework.security.authorization.AuthorizationManager<org.springframework.security.web.access.intercept.RequestAuthorizationContext> internalOrAdminAuthorizationManager() {
+        return (authentication, context) -> {
+            jakarta.servlet.http.HttpServletRequest request = context.getRequest();
+            String remoteAddr = request.getRemoteAddr();
+
+            // Allow internal calls (localhost, loopback, private RFC1918 CIDRs, docker internal network, or X-Internal-Call header)
+            if (isInternalAddress(remoteAddr) || "true".equalsIgnoreCase(request.getHeader("X-Internal-Call"))) {
+                return new org.springframework.security.authorization.AuthorizationDecision(true);
+            }
+
+            // Allow authenticated admin roles
+            org.springframework.security.core.Authentication auth = authentication.get();
+            if (auth != null && auth.isAuthenticated()) {
+                boolean isAdmin = auth.getAuthorities().stream()
+                        .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()) || "ROLE_TENANT_ADMIN".equals(a.getAuthority()));
+                if (isAdmin) {
+                    return new org.springframework.security.authorization.AuthorizationDecision(true);
+                }
+            }
+
+            return new org.springframework.security.authorization.AuthorizationDecision(false);
+        };
+    }
+
+    private boolean isInternalAddress(String remoteAddr) {
+        if (remoteAddr == null || remoteAddr.isBlank()) {
+            return false;
+        }
+        return remoteAddr.equals("127.0.0.1") ||
+               remoteAddr.equals("0:0:0:0:0:0:0:1") ||
+               remoteAddr.equals("localhost") ||
+               remoteAddr.startsWith("10.") ||
+               remoteAddr.startsWith("172.16.") ||
+               remoteAddr.startsWith("172.17.") ||
+               remoteAddr.startsWith("172.18.") ||
+               remoteAddr.startsWith("172.19.") ||
+               remoteAddr.startsWith("172.2") ||
+               remoteAddr.startsWith("172.3") ||
+               remoteAddr.startsWith("192.168.");
     }
 }

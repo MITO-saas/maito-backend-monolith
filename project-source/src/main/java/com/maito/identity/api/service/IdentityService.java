@@ -16,4 +16,8 @@ public interface IdentityService {
     Optional<GlobalUserDto> findByEmail(String email);
 
     Optional<GlobalUserDto> findById(UUID id);
+
+    GlobalUserDto createOrGetSocialIdentity(String email, String provider, String providerSubjectId, String phone, String avatarUrl);
+
+    GlobalUserDto createOrGetPhoneIdentity(String phone);
 }

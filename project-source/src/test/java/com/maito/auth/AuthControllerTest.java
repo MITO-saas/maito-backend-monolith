@@ -11,6 +11,10 @@ import com.maito.tenant.routing.TenantContext;
 import com.maito.tenant.routing.TenantContextHolder;
 import com.maito.user.api.dto.TenantProfileDto;
 import com.maito.user.api.service.UserService;
+import com.maito.wallet.api.service.WalletService;
+import com.maito.cart.api.service.CartService;
+import com.maito.auth.security.GoogleTokenVerifier;
+import com.maito.auth.security.PhoneOtpService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +55,18 @@ class AuthControllerTest {
 
     @MockBean
     private JwtTokenProvider tokenProvider;
+
+    @MockBean
+    private WalletService walletService;
+
+    @MockBean
+    private CartService cartService;
+
+    @MockBean
+    private GoogleTokenVerifier googleTokenVerifier;
+
+    @MockBean
+    private PhoneOtpService phoneOtpService;
 
     @BeforeEach
     void setUp() {
