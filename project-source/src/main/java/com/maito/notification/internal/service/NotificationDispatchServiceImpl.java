@@ -12,6 +12,7 @@ import com.maito.shared.exception.ErrorCode;
 import com.maito.tenant.routing.TenantContext;
 import com.maito.tenant.routing.TenantContextHolder;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Service
 @Slf4j
@@ -29,16 +31,22 @@ public class NotificationDispatchServiceImpl implements NotificationDispatchServ
 
     private final Map<NotificationChannelType, NotificationChannel> channelMap = new EnumMap<>(NotificationChannelType.class);
     private final NotificationLogRepository notificationLogRepository;
+    private final Executor notificationTaskExecutor;
 
-    public NotificationDispatchServiceImpl(List<NotificationChannel> channels, NotificationLogRepository notificationLogRepository) {
+    public NotificationDispatchServiceImpl(
+            List<NotificationChannel> channels,
+            NotificationLogRepository notificationLogRepository,
+            @Qualifier("notificationTaskExecutor") Executor notificationTaskExecutor
+    ) {
         for (NotificationChannel channel : channels) {
             this.channelMap.put(channel.getChannelType(), channel);
         }
         this.notificationLogRepository = notificationLogRepository;
+        this.notificationTaskExecutor = notificationTaskExecutor;
     }
 
     @Override
-    @Async
+    @Async("notificationTaskExecutor")
     public CompletableFuture<NotificationLogDto> dispatchAsync(NotificationMessage message) {
         TenantContext currentContext = TenantContextHolder.get();
         return CompletableFuture.supplyAsync(() -> {
@@ -50,7 +58,7 @@ public class NotificationDispatchServiceImpl implements NotificationDispatchServ
             } finally {
                 TenantContextHolder.clear();
             }
-        });
+        }, notificationTaskExecutor);
     }
 
     @Override
