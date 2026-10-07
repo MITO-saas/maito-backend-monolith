@@ -114,6 +114,39 @@ maito:
   gateway:
     rate-limiting:
       enabled: ${MAITO_RATE_LIMITING_ENABLED:true}
+  payment:
+    razorpay:
+      key-id: ${RAZORPAY_KEY_ID:rzp_test_mock_key_2026}
+      secret: ${RAZORPAY_KEY_SECRET:secret_mock_test_2026}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:rzp_webhook_secret_default_2026}
+    stripe:
+      publishable-key: ${STRIPE_PUBLISHABLE_KEY:pk_test_mock_key_2026}
+      secret-key: ${STRIPE_SECRET_KEY:sk_test_mock_secret_2026}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_mock_test_stripe_2026}
+  fulfillment:
+    webhook-secret: ${FULFILLMENT_WEBHOOK_SECRET:whsec_fulfillment_default_2026}
+    delhivery:
+      api-token: ${DELHIVERY_API_TOKEN:dummy_delhivery_token}
+      base-url: ${DELHIVERY_BASE_URL:https://track.delhivery.com}
+      sandbox: ${DELHIVERY_SANDBOX:true}
+    shiprocket:
+      api-token: ${SHIPROCKET_API_TOKEN:dummy_shiprocket_token}
+      base-url: ${SHIPROCKET_BASE_URL:https://apiv2.shiprocket.in}
+      sandbox: ${SHIPROCKET_SANDBOX:true}
+  notification:
+    email:
+      provider: ${EMAIL_PROVIDER:SANDBOX}
+      ses-region: ${AWS_SES_REGION:ap-south-1}
+      from-address: ${EMAIL_FROM_ADDRESS:notifications@mitocrunch.com}
+    whatsapp:
+      provider: ${WHATSAPP_PROVIDER:SANDBOX}
+      phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:1234567890}
+      access-token: ${WHATSAPP_ACCESS_TOKEN:dummy_token}
+    sms:
+      provider: ${SMS_PROVIDER:SANDBOX}
+      twilio-account-sid: ${TWILIO_ACCOUNT_SID:dummy_sid}
+      twilio-auth-token: ${TWILIO_AUTH_TOKEN:dummy_token}
+      twilio-from-number: ${TWILIO_FROM_NUMBER:+1234567890}
 
 # Enterprise Platform Configurations
 platform:

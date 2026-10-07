@@ -8,6 +8,8 @@ import java.util.UUID;
 
 public interface PaymentGatewayService {
     PaymentInitResponse initializePayment(UUID orderId, BigDecimal amount, String currency);
-    boolean verifyRazorpaySignature(String orderId, String paymentId, String signature, String secret);
+    PaymentInitResponse initializePayment(UUID orderId, BigDecimal amount, String currency, String gatewayProvider);
+    boolean verifyRazorpaySignature(String orderId, String paymentId, String signature, String customSecret);
+    boolean verifyStripeSignature(String payload, String signatureHeader, String customSecret);
     WebhookProcessResult processWebhook(String provider, String payload, String signatureHeader);
 }
