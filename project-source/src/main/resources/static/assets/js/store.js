@@ -141,6 +141,78 @@ class MaitoStore {
     throw new Error(res.message || 'Registration failed');
   }
 
+  // --- SOCIAL & OTP AUTHENTICATION ---
+  async loginWithSocial(provider, idToken) {
+    const res = await this.apiFetch('/api/v1/auth/social-login', {
+      method: 'POST',
+      body: {
+        provider: provider.toUpperCase(),
+        idToken,
+        guestCartId: this.cartId
+      }
+    });
+
+    if (res.success && res.data) {
+      this.authToken = res.data.accessToken;
+      this.userProfile = res.data.profile || res.data.userProfile || null;
+      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.userProfile) {
+        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+      } else {
+        localStorage.removeItem('maito_user_profile');
+      }
+
+      await this.onAuthSuccess();
+      return res.data;
+    }
+    throw new Error(res.message || 'Social sign-in failed');
+  }
+
+  async loginWithGoogle(credential) {
+    return this.loginWithSocial('GOOGLE', credential || 'mock-google-token-customer@mitocrunch.com');
+  }
+
+  async loginWithFacebook(credential) {
+    return this.loginWithSocial('FACEBOOK', credential || 'mock-facebook-token-customer@mitocrunch.com');
+  }
+
+  async sendOtp(phone) {
+    const res = await this.apiFetch('/api/v1/auth/otp/send', {
+      method: 'POST',
+      body: { phone }
+    });
+    if (res.success && res.data) {
+      return res.data;
+    }
+    throw new Error(res.message || 'Failed to send OTP');
+  }
+
+  async verifyOtp(phone, code) {
+    const res = await this.apiFetch('/api/v1/auth/otp/verify', {
+      method: 'POST',
+      body: {
+        phone,
+        code,
+        guestCartId: this.cartId
+      }
+    });
+
+    if (res.success && res.data) {
+      this.authToken = res.data.accessToken;
+      this.userProfile = res.data.profile || res.data.userProfile || null;
+      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.userProfile) {
+        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+      } else {
+        localStorage.removeItem('maito_user_profile');
+      }
+
+      await this.onAuthSuccess();
+      return res.data;
+    }
+    throw new Error(res.message || 'OTP verification failed');
+  }
+
   async onAuthSuccess() {
     // Attempt to merge guest cart into customer account
     try {

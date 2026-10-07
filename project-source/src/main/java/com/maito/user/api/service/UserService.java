@@ -15,6 +15,8 @@ public interface UserService {
 
     TenantProfileDto createProfile(UUID globalUserId, String firstName, String lastName, String role, List<String> permissions);
 
+    TenantProfileDto createProfile(UUID globalUserId, String firstName, String lastName, String role, List<String> permissions, String avatarUrl);
+
     Optional<TenantProfileDto> getProfileByGlobalUserId(UUID globalUserId);
 
     Optional<TenantProfileDto> getProfileById(UUID profileId);

@@ -24,11 +24,21 @@ public class GlobalUser extends BaseAuditableEntity {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(name = "phone_number")
     private String phoneNumber;
+
+    @Column(name = "auth_provider", nullable = false)
+    @Builder.Default
+    private String authProvider = "LOCAL";
+
+    @Column(name = "provider_subject_id")
+    private String providerSubjectId;
+
+    @Column(name = "avatar_url", length = 1024)
+    private String avatarUrl;
 
     @Column(name = "account_status", nullable = false)
     @Builder.Default

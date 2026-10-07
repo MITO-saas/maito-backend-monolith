@@ -13,4 +13,8 @@ public interface GlobalUserRepository extends JpaRepository<GlobalUser, UUID> {
     Optional<GlobalUser> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    Optional<GlobalUser> findByAuthProviderAndProviderSubjectId(String authProvider, String providerSubjectId);
+
+    Optional<GlobalUser> findByPhoneNumber(String phoneNumber);
 }

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Add avatar_url to tenant_user_profiles -->
+    <changeSet id="001-add-avatar-url-tenant-profiles" author="maito-user-architect" dbms="postgresql">
+        <comment>Add avatar_url to tenant_user_profiles for customer profile display</comment>
+        <sql>
+            ALTER TABLE tenant_user_profiles ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(1024);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
