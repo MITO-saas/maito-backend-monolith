@@ -1,6 +1,9 @@
 package com.maito.catalog.internal.service;
 
 import com.maito.catalog.api.dto.AdjustStockCommand;
+import com.maito.catalog.api.event.StockAdjustedEvent;
+import com.maito.tenant.routing.TenantContextHolder;
+import org.springframework.context.ApplicationEventPublisher;
 import com.maito.catalog.api.dto.InventoryLevelDto;
 import com.maito.catalog.api.service.InventoryService;
 import com.maito.catalog.internal.domain.InventoryLevel;
@@ -20,6 +23,7 @@ import java.util.UUID;
 public class InventoryServiceImpl implements InventoryService {
 
     private final InventoryLevelRepository inventoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional

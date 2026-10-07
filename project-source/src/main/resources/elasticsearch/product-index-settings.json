@@ -1,0 +1,63 @@
+{
+  "settings": {
+    "analysis": {
+      "tokenizer": {
+        "edge_ngram_tokenizer": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_gram": 20,
+          "token_chars": ["letter", "digit"]
+        }
+      },
+      "analyzer": {
+        "edge_ngram_analyzer": {
+          "type": "custom",
+          "tokenizer": "edge_ngram_tokenizer",
+          "filter": ["lowercase", "asciifolding"]
+        },
+        "edge_ngram_search_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "id": { "type": "keyword" },
+      "productId": { "type": "keyword" },
+      "tenantId": { "type": "keyword" },
+      "slug": { "type": "keyword" },
+      "name": {
+        "type": "text",
+        "analyzer": "edge_ngram_analyzer",
+        "search_analyzer": "edge_ngram_search_analyzer",
+        "fields": {
+          "keyword": { "type": "keyword" },
+          "standard": { "type": "text", "analyzer": "standard" }
+        }
+      },
+      "description": { "type": "text", "analyzer": "standard" },
+      "brand": {
+        "type": "keyword",
+        "fields": {
+          "text": { "type": "text" }
+        }
+      },
+      "categoryName": { "type": "keyword" },
+      "categorySlug": { "type": "keyword" },
+      "price": { "type": "double" },
+      "mrp": { "type": "double" },
+      "discountPercent": { "type": "integer" },
+      "availableStock": { "type": "integer" },
+      "inStock": { "type": "boolean" },
+      "tags": { "type": "keyword" },
+      "attributes": { "type": "flattened" },
+      "ratingAverage": { "type": "double" },
+      "reviewCount": { "type": "integer" },
+      "createdAt": { "type": "date" },
+      "primaryImage": { "type": "keyword" }
+    }
+  }
+}

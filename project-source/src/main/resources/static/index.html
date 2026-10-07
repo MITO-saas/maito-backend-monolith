@@ -92,6 +92,32 @@
       <a href="/" class="flex items-center space-x-3 group">
         <img src="/assets/brands/mito_crunch/brand/logo_crunch.svg" alt="Mito Crunch Logo" class="h-10 w-auto group-hover:scale-105 transition-transform" />
       </a>
+      <!-- Omnisearch Bar with Edge-Ngram Autocomplete -->
+      <div id="search-header-container" class="relative flex-grow max-w-md mx-4 lg:mx-8 hidden sm:block">
+        <div class="relative flex items-center">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none"></i>
+          <input type="text" id="catalog-search-input" 
+                 placeholder="Search flavors, peri peri, roasted makhana..." 
+                 class="w-full pl-10 pr-9 py-2 text-xs font-medium bg-slate-100 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-full focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-500/20 transition-all text-slate-800"
+                 autocomplete="off" />
+          <button id="search-clear-btn" onclick="clearSearchInput()" class="hidden absolute right-3 text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <!-- Live Autocomplete Dropdown -->
+        <div id="search-suggestions-dropdown" 
+             class="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 hidden z-50 overflow-hidden divide-y divide-slate-50 transition-all">
+          <div id="suggestions-list" class="max-h-80 overflow-y-auto py-1">
+            <!-- Dynamically populated suggestions -->
+          </div>
+          <div id="suggestions-footer" class="px-4 py-2 bg-slate-50/80 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Press <kbd class="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-mono shadow-xs">↵ Enter</kbd> for full search</span>
+            <span class="flex items-center text-amber-700 font-semibold"><i data-lucide="sparkles" class="w-3 h-3 mr-1 text-amber-500"></i>Elasticsearch 8</span>
+          </div>
+        </div>
+      </div>
+
 
       <!-- Desktop Navigation -->
       <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-700">
@@ -1799,5 +1825,498 @@
       renderCartBadge();
     });
   </script>
+
+  <!-- ========================================================================= -->
+  <!-- 5. ELASTICSEARCH CATALOG SEARCH & FACET FILTER MODAL -->
+  <!-- ========================================================================= -->
+  <div id="search-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-2 sm:p-4 md:p-6">
+    <div id="search-modal-backdrop" onclick="closeSearchModal()" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"></div>
+    
+    <div class="relative w-full max-w-6xl max-h-[92vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden z-10 border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+            <i data-lucide="search" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              <span id="search-modal-title">Catalog Search</span>
+              <span id="search-engine-badge" class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">Elasticsearch 8.x</span>
+            </h2>
+            <p id="search-results-meta" class="text-xs text-slate-500">Showing all matching products</p>
+          </div>
+        </div>
+        <button onclick="closeSearchModal()" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Two-Column Layout: Facets Sidebar + Products Grid) -->
+      <div class="flex-grow flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Facet Filters Sidebar -->
+        <aside class="w-full md:w-72 border-b md:border-b-0 md:border-r border-slate-100 p-5 overflow-y-auto space-y-6 bg-slate-50/30">
+          
+          <!-- Quick Search Filter within results -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Refine Search</label>
+            <input type="text" id="facet-search-q" placeholder="Keywords..." 
+                   class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-amber-600 font-medium" />
+          </div>
+
+          <!-- Sort Dropdown -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Sort By</label>
+            <select id="facet-sort-select" onchange="triggerSearchFromFacets()" 
+                    class="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-amber-600 font-medium text-slate-800">
+              <option value="relevance">Relevance</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="rating">Highest Rated</option>
+              <option value="newest">Newest Arrivals</option>
+            </select>
+          </div>
+
+          <!-- Category Facet -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Categories</label>
+              <button onclick="clearCategoryFilter()" class="text-[10px] text-amber-600 hover:underline">Clear</button>
+            </div>
+            <div id="facet-categories-list" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+              <!-- Dynamically populated categories -->
+            </div>
+          </div>
+
+          <!-- Brand Facet -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Brands</label>
+              <button onclick="clearBrandFilter()" class="text-[10px] text-amber-600 hover:underline">Clear</button>
+            </div>
+            <div id="facet-brands-list" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+              <!-- Dynamically populated brands -->
+            </div>
+          </div>
+
+          <!-- Price Range Filter -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Price Range (₹)</label>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+              <input type="number" id="facet-min-price" placeholder="Min ₹" 
+                     class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:border-amber-600" />
+              <input type="number" id="facet-max-price" placeholder="Max ₹" 
+                     class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:border-amber-600" />
+            </div>
+            <button onclick="triggerSearchFromFacets()" 
+                    class="w-full py-1.5 text-xs font-bold bg-slate-900 hover:bg-amber-600 text-white rounded-lg transition-colors">
+              Apply Price
+            </button>
+          </div>
+
+          <!-- Availability Filter -->
+          <div>
+            <label class="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input type="checkbox" id="facet-instock" onchange="triggerSearchFromFacets()" 
+                     class="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500" />
+              <span>In Stock Only</span>
+            </label>
+          </div>
+
+          <!-- Reset Button -->
+          <button onclick="resetAllSearchFilters()" 
+                  class="w-full py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+            Reset All Filters
+          </button>
+        </aside>
+
+        <!-- Search Results Grid -->
+        <section class="flex-grow p-6 overflow-y-auto">
+          <div id="search-products-loading" class="hidden py-16 text-center text-slate-400">
+            <div class="animate-spin w-8 h-8 border-4 border-amber-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+            <p class="text-xs font-semibold">Searching catalog with Elasticsearch...</p>
+          </div>
+
+          <div id="search-products-empty" class="hidden py-16 text-center text-slate-400">
+            <i data-lucide="package-search" class="w-12 h-12 mx-auto text-slate-300 mb-3"></i>
+            <h3 class="text-base font-bold text-slate-800 mb-1">No products found</h3>
+            <p class="text-xs text-slate-500 max-w-sm mx-auto">Try adjusting your keywords, loosening filters, or resetting the price range.</p>
+          </div>
+
+          <div id="search-products-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Dynamically populated product cards -->
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- ELASTICSEARCH STOREFRONT CONTROLLER SCRIPT -->
+  <!-- ========================================================================= -->
+  <script>
+    let activeSearchCriteria = {
+      q: '',
+      category: '',
+      brand: '',
+      minPrice: null,
+      maxPrice: null,
+      inStock: false,
+      sort: 'relevance',
+      page: 0,
+      size: 24
+    };
+
+    let activeSuggestionIndex = -1;
+    let currentSuggestions = [];
+
+    // Initialize Search Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      const searchInput = document.getElementById('catalog-search-input');
+      const clearBtn = document.getElementById('search-clear-btn');
+      const dropdown = document.getElementById('search-suggestions-dropdown');
+
+      if (searchInput) {
+        searchInput.addEventListener('input', async (e) => {
+          const val = e.target.value.trim();
+          if (val.length > 0) {
+            clearBtn.classList.remove('hidden');
+          } else {
+            clearBtn.classList.add('hidden');
+            dropdown.classList.add('hidden');
+            return;
+          }
+
+          // Fetch suggestions
+          try {
+            currentSuggestions = await window.store.getSearchSuggestions(val);
+            renderSuggestions(currentSuggestions);
+          } catch (err) {
+            console.warn('Suggestions error:', err);
+          }
+        });
+
+        // Keyboard Navigation (ArrowUp, ArrowDown, Enter, Escape)
+        searchInput.addEventListener('keydown', (e) => {
+          if (dropdown.classList.contains('hidden') && e.key !== 'Enter') return;
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeSuggestionIndex = (activeSuggestionIndex + 1) % (currentSuggestions.length || 1);
+            highlightSuggestion(activeSuggestionIndex);
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeSuggestionIndex = (activeSuggestionIndex - 1 + (currentSuggestions.length || 1)) % (currentSuggestions.length || 1);
+            highlightSuggestion(activeSuggestionIndex);
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeSuggestionIndex >= 0 && currentSuggestions[activeSuggestionIndex]) {
+              selectSuggestion(currentSuggestions[activeSuggestionIndex]);
+            } else {
+              activeSearchCriteria.q = searchInput.value.trim();
+              openSearchModal();
+              executeCatalogSearch();
+            }
+            dropdown.classList.add('hidden');
+          } else if (e.key === 'Escape') {
+            dropdown.classList.add('hidden');
+            activeSuggestionIndex = -1;
+          }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!document.getElementById('search-header-container')?.contains(e.target)) {
+            dropdown.classList.add('hidden');
+          }
+        });
+      }
+
+      // Live search input in facet sidebar
+      const facetQ = document.getElementById('facet-search-q');
+      if (facetQ) {
+        facetQ.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            triggerSearchFromFacets();
+          }
+        });
+      }
+    });
+
+    function clearSearchInput() {
+      const input = document.getElementById('catalog-search-input');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      document.getElementById('search-clear-btn')?.classList.add('hidden');
+      document.getElementById('search-suggestions-dropdown')?.classList.add('hidden');
+      activeSuggestionIndex = -1;
+    }
+
+    function renderSuggestions(suggestions) {
+      const dropdown = document.getElementById('search-suggestions-dropdown');
+      const listEl = document.getElementById('suggestions-list');
+      if (!dropdown || !listEl) return;
+
+      if (!suggestions || suggestions.length === 0) {
+        dropdown.classList.add('hidden');
+        return;
+      }
+
+      activeSuggestionIndex = -1;
+      listEl.innerHTML = suggestions.map((s, idx) => `
+        <div id="suggestion-item-${idx}" 
+             onclick='selectSuggestion(${JSON.stringify(s).replace(/'/g, "&apos;")})'
+             class="px-4 py-2.5 flex items-center justify-between hover:bg-amber-50/70 cursor-pointer transition-colors group">
+          <div class="flex items-center space-x-3">
+            <img src="${s.primaryImage || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
+                 alt="${s.text}" 
+                 class="w-9 h-9 object-cover rounded-lg border border-slate-100 group-hover:scale-105 transition-transform" />
+            <div>
+              <div class="text-xs font-bold text-slate-800 group-hover:text-amber-800">${s.text}</div>
+              <div class="text-[10px] text-slate-400 font-medium">${s.category || 'Flavors'}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs font-extrabold text-slate-900">${window.store.formatCurrency(s.price || 149)}</span>
+          </div>
+        </div>
+      `).join('');
+
+      dropdown.classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function highlightSuggestion(index) {
+      document.querySelectorAll('#suggestions-list > div').forEach((el, idx) => {
+        if (idx === index) {
+          el.classList.add('bg-amber-50');
+        } else {
+          el.classList.remove('bg-amber-50');
+        }
+      });
+    }
+
+    function selectSuggestion(item) {
+      document.getElementById('catalog-search-input').value = item.text;
+      document.getElementById('search-suggestions-dropdown').classList.add('hidden');
+      activeSearchCriteria.q = item.text;
+      openSearchModal();
+      executeCatalogSearch();
+    }
+
+    function openSearchModal() {
+      const modal = document.getElementById('search-modal');
+      modal?.classList.remove('hidden');
+      document.getElementById('facet-search-q').value = activeSearchCriteria.q || '';
+      document.body.style.overflow = 'hidden';
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function closeSearchModal() {
+      document.getElementById('search-modal')?.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+
+    async function executeCatalogSearch() {
+      const grid = document.getElementById('search-products-grid');
+      const loading = document.getElementById('search-products-loading');
+      const empty = document.getElementById('search-products-empty');
+      const meta = document.getElementById('search-results-meta');
+      const badge = document.getElementById('search-engine-badge');
+
+      grid.innerHTML = '';
+      empty.classList.add('hidden');
+      loading.classList.remove('hidden');
+
+      try {
+        const data = await window.store.searchProducts(activeSearchCriteria);
+        loading.classList.add('hidden');
+
+        // Update meta & engine badge
+        meta.innerText = `Found ${data.totalHits} product${data.totalHits === 1 ? '' : 's'}${activeSearchCriteria.q ? ' for "' + activeSearchCriteria.q + '"' : ''}`;
+        if (badge) {
+          if (data.searchEngine === 'ELASTICSEARCH') {
+            badge.className = 'text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold';
+            badge.innerText = '⚡ Elasticsearch 8.x';
+          } else {
+            badge.className = 'text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-bold';
+            badge.innerText = '🛡️ SQL Fail-Safe';
+          }
+        }
+
+        renderFacets(data.brandFacets, data.categoryFacets);
+
+        if (!data.products || data.products.length === 0) {
+          empty.classList.remove('hidden');
+          return;
+        }
+
+        grid.innerHTML = data.products.map(p => `
+          <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group">
+            <div>
+              <div class="relative overflow-hidden rounded-xl bg-slate-50 aspect-square mb-3">
+                <img src="${p.primaryImage || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
+                     alt="${p.name}" 
+                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                ${p.discountPercent > 0 ? `<span class="absolute top-2 left-2 bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow-sm">${p.discountPercent}% OFF</span>` : ''}
+                ${!p.inStock ? `<span class="absolute top-2 right-2 bg-rose-600 text-white font-bold text-[10px] px-2 py-0.5 rounded-full">Out of Stock</span>` : ''}
+              </div>
+              <div class="flex items-center space-x-1.5 mb-1">
+                <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">${p.brand || 'Mito Crunch'}</span>
+                <span class="text-[10px] font-medium text-slate-400">${p.categoryName || 'Makhana'}</span>
+              </div>
+              <h4 class="text-sm font-extrabold text-slate-900 group-hover:text-amber-600 transition-colors line-clamp-1 mb-1">${p.name}</h4>
+              <p class="text-xs text-slate-500 line-clamp-2 mb-3">${p.shortDescription || ''}</p>
+            </div>
+            
+            <div>
+              <div class="flex items-baseline space-x-2 mb-3">
+                <span class="text-base font-extrabold text-slate-900">${window.store.formatCurrency(p.price)}</span>
+                ${p.mrp && p.mrp > p.price ? `<span class="text-xs text-slate-400 line-through">${window.store.formatCurrency(p.mrp)}</span>` : ''}
+              </div>
+              <button onclick="handleSearchAddToCart('${p.id}')" 
+                      ${!p.inStock ? 'disabled' : ''}
+                      class="w-full py-2 bg-slate-900 hover:bg-amber-600 disabled:bg-slate-200 text-white disabled:text-slate-400 text-xs font-bold rounded-xl transition-all flex items-center justify-center space-x-1 shadow-sm active:scale-98">
+                <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+                <span>${p.inStock ? 'Add to Cart' : 'Out of Stock'}</span>
+              </button>
+            </div>
+          </div>
+        `).join('');
+
+        if (window.lucide) lucide.createIcons();
+      } catch (err) {
+        loading.classList.add('hidden');
+        empty.classList.remove('hidden');
+        console.error('Search execution failed:', err);
+      }
+    }
+
+    function renderFacets(brandFacets, categoryFacets) {
+      const brandsContainer = document.getElementById('facet-brands-list');
+      const catsContainer = document.getElementById('facet-categories-list');
+
+      if (brandsContainer && brandFacets) {
+        brandsContainer.innerHTML = Object.entries(brandFacets).map(([brand, count]) => `
+          <label class="flex items-center justify-between text-xs text-slate-700 hover:text-amber-600 cursor-pointer py-0.5">
+            <span class="flex items-center space-x-2">
+              <input type="radio" name="facet-brand-radio" value="${brand}" 
+                     ${activeSearchCriteria.brand === brand ? 'checked' : ''}
+                     onchange="onBrandFacetSelect('${brand}')"
+                     class="text-amber-600 focus:ring-amber-500 border-slate-300" />
+              <span>${brand}</span>
+            </span>
+            <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded-full font-mono">${count}</span>
+          </label>
+        `).join('');
+      }
+
+      if (catsContainer && categoryFacets) {
+        catsContainer.innerHTML = Object.entries(categoryFacets).map(([cat, count]) => `
+          <label class="flex items-center justify-between text-xs text-slate-700 hover:text-amber-600 cursor-pointer py-0.5">
+            <span class="flex items-center space-x-2">
+              <input type="radio" name="facet-cat-radio" value="${cat}" 
+                     ${activeSearchCriteria.category === cat ? 'checked' : ''}
+                     onchange="onCategoryFacetSelect('${cat}')"
+                     class="text-amber-600 focus:ring-amber-500 border-slate-300" />
+              <span>${cat}</span>
+            </span>
+            <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded-full font-mono">${count}</span>
+          </label>
+        `).join('');
+      }
+    }
+
+    function onBrandFacetSelect(brand) {
+      activeSearchCriteria.brand = brand;
+      executeCatalogSearch();
+    }
+
+    function onCategoryFacetSelect(cat) {
+      activeSearchCriteria.category = cat;
+      executeCatalogSearch();
+    }
+
+    function clearBrandFilter() {
+      activeSearchCriteria.brand = '';
+      document.querySelectorAll('input[name="facet-brand-radio"]').forEach(el => el.checked = false);
+      executeCatalogSearch();
+    }
+
+    function clearCategoryFilter() {
+      activeSearchCriteria.category = '';
+      document.querySelectorAll('input[name="facet-cat-radio"]').forEach(el => el.checked = false);
+      executeCatalogSearch();
+    }
+
+    function triggerSearchFromFacets() {
+      const qInput = document.getElementById('facet-search-q');
+      if (qInput) activeSearchCriteria.q = qInput.value.trim();
+
+      const sortSelect = document.getElementById('facet-sort-select');
+      if (sortSelect) activeSearchCriteria.sort = sortSelect.value;
+
+      const minP = document.getElementById('facet-min-price');
+      activeSearchCriteria.minPrice = (minP && minP.value) ? parseFloat(minP.value) : null;
+
+      const maxP = document.getElementById('facet-max-price');
+      activeSearchCriteria.maxPrice = (maxP && maxP.value) ? parseFloat(maxP.value) : null;
+
+      const inStock = document.getElementById('facet-instock');
+      activeSearchCriteria.inStock = inStock ? inStock.checked : false;
+
+      executeCatalogSearch();
+    }
+
+    function resetAllSearchFilters() {
+      activeSearchCriteria = {
+        q: '',
+        category: '',
+        brand: '',
+        minPrice: null,
+        maxPrice: null,
+        inStock: false,
+        sort: 'relevance',
+        page: 0,
+        size: 24
+      };
+      document.getElementById('catalog-search-input').value = '';
+      document.getElementById('facet-search-q').value = '';
+      document.getElementById('facet-sort-select').value = 'relevance';
+      document.getElementById('facet-min-price').value = '';
+      document.getElementById('facet-max-price').value = '';
+      document.getElementById('facet-instock').checked = false;
+      document.querySelectorAll('input[name="facet-brand-radio"]').forEach(el => el.checked = false);
+      document.querySelectorAll('input[name="facet-cat-radio"]').forEach(el => el.checked = false);
+      executeCatalogSearch();
+    }
+
+    async function handleSearchAddToCart(productId) {
+      try {
+        // Fallback variant ID or resolve product detail
+        const res = await window.store.apiFetch(`/api/v1/catalog/products`);
+        let variantId = null;
+        if (res.success && Array.isArray(res.data)) {
+          const item = res.data.find(d => d.id === productId);
+          if (item && item.priceRange && item.priceRange.variantId) {
+            variantId = item.priceRange.variantId;
+          }
+        }
+        if (!variantId) {
+          variantId = productId; // fallback
+        }
+        await window.store.addToCart(variantId, 1);
+        openCartDrawer();
+      } catch (e) {
+        console.error('Failed to add product from search to cart:', e);
+      }
+    }
+  </script>
+
 </body>
 </html>
