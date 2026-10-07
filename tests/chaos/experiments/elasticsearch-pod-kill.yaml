@@ -1,0 +1,19 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: elasticsearch-pod-kill-experiment
+  namespace: maito-prod
+  labels:
+    tier: chaos-resilience
+    app.kubernetes.io/name: maito-monolith
+spec:
+  action: pod-kill
+  mode: fixed
+  value: '1'
+  selector:
+    namespaces:
+      - maito-prod
+    labelSelectors:
+      app: maito-elasticsearch
+  scheduler:
+    cron: '@every 5m'

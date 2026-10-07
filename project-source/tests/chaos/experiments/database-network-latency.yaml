@@ -1,0 +1,29 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: postgres-network-latency-experiment
+  namespace: maito-prod
+  labels:
+    tier: chaos-resilience
+    app.kubernetes.io/name: maito-monolith
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - maito-prod
+    labelSelectors:
+      app: maito-postgres
+  delay:
+    latency: '150ms'
+    jitter: '10ms'
+    correlation: '50'
+  duration: '120s'
+  direction: to
+  target:
+    selector:
+      namespaces:
+        - maito-prod
+      labelSelectors:
+        app.kubernetes.io/name: maito-monolith
+    mode: all
