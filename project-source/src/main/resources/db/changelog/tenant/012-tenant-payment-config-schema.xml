@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 001: Tenant Payment Configs Table -->
+    <changeSet id="001-create-tenant-payment-configs" author="maito-payment-architect">
+        <comment>Dynamic per-tenant payment gateway credentials and webhook secrets</comment>
+        <createTable tableName="tenant_payment_configs">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="provider" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_test_mode" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="key_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="secret_key" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="webhook_secret" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="merchant_account_id" type="VARCHAR(255)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="tenant_payment_configs"
+                             columnNames="provider"
+                             constraintName="uq_tenant_payment_provider"/>
+
+        <createIndex tableName="tenant_payment_configs" indexName="idx_tenant_payment_provider">
+            <column name="provider"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- 002: Add variant tax columns -->
+    <changeSet id="002-add-variant-tax-fields" author="maito-catalog-architect">
+        <comment>Add tax_rate and hsn_code columns to catalog_product_variants</comment>
+        <addColumn tableName="catalog_product_variants">
+            <column name="tax_rate" type="NUMERIC(5,4)"/>
+            <column name="hsn_code" type="VARCHAR(32)"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- 003: Add version column to tenant_payment_configs -->
+    <changeSet id="003-add-version-to-payment-configs" author="maito-payment-architect">
+        <comment>Add version column to tenant_payment_configs</comment>
+        <addColumn tableName="tenant_payment_configs">
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

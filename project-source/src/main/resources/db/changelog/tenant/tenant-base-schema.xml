@@ -113,4 +113,5 @@
 
     <include file="010-b2b-horeca-schema.xml" relativeToChangelogFile="true"/>
     <include file="011-tenant-user-avatar.xml" relativeToChangelogFile="true"/>
+    <include file="012-tenant-payment-config-schema.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

@@ -113,7 +113,47 @@ public class FulfillmentServiceImpl implements FulfillmentService {
                 cmd.assignedRiderPhone()
         );
 
-        ShipmentBookingResult bookingResult = adapter.bookShipment(bookingRequest);
+        ShipmentBookingResult bookingResult;
+        CarrierType bookedCarrier = cmd.carrierType();
+        String failoverNote = null;
+
+        try {
+            bookingResult = adapter.bookShipment(bookingRequest);
+        } catch (Exception ex) {
+            log.warn("Booking failed for requested carrier [{}]: {}. Initiating automated carrier failover.",
+                    cmd.carrierType(), ex.getMessage());
+
+            // Carrier failover: select next enabled carrier from database
+            List<CarrierConfiguration> allConfigs = carrierConfigRepository.findAll();
+            CarrierConfiguration fallbackConfig = allConfigs.stream()
+                    .filter(c -> Boolean.TRUE.equals(c.getIsEnabled()) && c.getCarrierType() != cmd.carrierType())
+                    .findFirst()
+                    .orElse(null);
+
+            CarrierType fallbackCarrier = (fallbackConfig != null) ? fallbackConfig.getCarrierType() : CarrierType.SELF_FLEET;
+            log.info("Automated carrier failover: [{}] -> [{}]", cmd.carrierType(), fallbackCarrier);
+            CarrierAdapter fallbackAdapter = carrierAdapterFactory.getAdapter(fallbackCarrier);
+            bookedCarrier = fallbackCarrier;
+
+            ShipmentBookingRequest fallbackRequest = new ShipmentBookingRequest(
+                    order.id(),
+                    order.orderNumber(),
+                    shipmentNumber,
+                    "Valued Customer",
+                    "9876543210",
+                    order.shippingAddressSnapshot(),
+                    deadWeightGrams,
+                    volumetricGrams,
+                    fallbackConfig != null ? fallbackConfig.getSettings() : Map.of(),
+                    fallbackConfig != null ? fallbackConfig.getCredentials() : Map.of(),
+                    cmd.assignedRiderName(),
+                    cmd.assignedRiderPhone(),
+                    null
+            );
+
+            bookingResult = fallbackAdapter.bookShipment(fallbackRequest);
+            failoverNote = "Automated carrier failover executed: " + cmd.carrierType() + " -> " + fallbackCarrier;
+        }
 
         Shipment shipment = Shipment.builder()
                 .orderId(order.id())
@@ -136,7 +176,9 @@ public class FulfillmentServiceImpl implements FulfillmentService {
                 .shipmentId(savedShipment.getId())
                 .checkpointStatus("MANIFESTED")
                 .locationHub(bookingResult.initialCheckpointHub() != null ? bookingResult.initialCheckpointHub() : "ORIGIN_HUB")
-                .statusDescription(bookingResult.initialCheckpointDesc() != null ? bookingResult.initialCheckpointDesc() : "Manifest generated.")
+                .statusDescription(failoverNote != null
+                        ? failoverNote + ". " + (bookingResult.initialCheckpointDesc() != null ? bookingResult.initialCheckpointDesc() : "")
+                        : (bookingResult.initialCheckpointDesc() != null ? bookingResult.initialCheckpointDesc() : "Manifest generated."))
                 .eventTimestamp(Instant.now())
                 .build();
 

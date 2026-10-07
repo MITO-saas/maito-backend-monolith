@@ -7,6 +7,7 @@ import com.maito.payment.api.dto.PaymentInitResponse;
 import com.maito.payment.api.service.PaymentGatewayService;
 import com.maito.payment.internal.domain.PaymentTransaction;
 import com.maito.payment.internal.repository.PaymentTransactionRepository;
+import com.maito.payment.internal.repository.TenantPaymentConfigRepository;
 import com.maito.tenant.routing.TenantContext;
 import com.maito.tenant.routing.TenantContextHolder;
 import com.maito.user.api.dto.TenantProfileDto;

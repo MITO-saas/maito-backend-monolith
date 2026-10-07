@@ -48,6 +48,7 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
             "/api/v1/help/**",
             "/api/v1/help",
             "/api/v1/internal/platform/**",
+            "/api/v1/payments/webhook/**",
             "/error"
     );
 
@@ -66,6 +67,9 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         if (routingResolver == null) {
             return true;
+        }
+        if (request.getHeader(TENANT_HEADER) != null && !request.getHeader(TENANT_HEADER).isBlank()) {
+            return false;
         }
         String path = request.getRequestURI();
         for (String pattern : BYPASS_PATTERNS) {
