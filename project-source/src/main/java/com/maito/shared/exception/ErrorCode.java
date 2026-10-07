@@ -23,6 +23,7 @@ public enum ErrorCode {
     CARRIER_NOT_SUPPORTED("FULFILLMENT_4001", "Carrier not supported or unconfigured", HttpStatus.BAD_REQUEST),
     INVALID_DELIVERY_OTP("FULFILLMENT_4002", "Invalid delivery verification OTP", HttpStatus.BAD_REQUEST),
     INSUFFICIENT_WALLET_BALANCE("WALLET_4001", "Insufficient wallet balance", HttpStatus.BAD_REQUEST),
+    PAYMENT_CONFIG_MISSING("PAYMENT_4041", "Payment gateway configuration is missing or disabled for tenant", HttpStatus.BAD_REQUEST),
     INVALID_PAYMENT_SIGNATURE("PAYMENT_4001", "Invalid payment gateway signature", HttpStatus.BAD_REQUEST),
     WALLET_NOT_FOUND("WALLET_4040", "Customer wallet not found", HttpStatus.NOT_FOUND),
     PAYMENT_TRANSACTION_NOT_FOUND("PAYMENT_4040", "Payment transaction not found", HttpStatus.NOT_FOUND),

@@ -32,6 +32,21 @@ public final class TenantContextHolder {
         return CURRENT_CONTEXT.get();
     }
 
+    public static void setTenantId(String tenantId) {
+        if (tenantId == null) {
+            clear();
+        } else {
+            String clean = tenantId.trim().toLowerCase().replaceAll("[^a-z0-9_]", "");
+            if ("mito_crunch".equalsIgnoreCase(clean)) {
+                clean = "mitocrunch";
+            } else if ("vijiya_solar".equalsIgnoreCase(clean)) {
+                clean = "vijiyasolar";
+            }
+            String db = "db_" + clean;
+            set(new TenantContext(tenantId, tenantId, "IN", "INR", "en_IN", db));
+        }
+    }
+
     public static String getTenantId() {
         TenantContext ctx = CURRENT_CONTEXT.get();
         return (ctx != null) ? ctx.tenantId() : null;

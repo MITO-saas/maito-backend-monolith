@@ -15,5 +15,25 @@ public record ShipmentBookingRequest(
         Map<String, Object> carrierSettings,
         Map<String, Object> carrierCredentials,
         String riderName,
-        String riderPhone
-) {}
+        String riderPhone,
+        String pickupLocation
+) {
+    public ShipmentBookingRequest(
+            UUID orderId,
+            String orderNumber,
+            String shipmentNumber,
+            String customerName,
+            String customerPhone,
+            Map<String, Object> shippingAddress,
+            int totalWeightGrams,
+            int volumetricWeightGrams,
+            Map<String, Object> carrierSettings,
+            Map<String, Object> carrierCredentials,
+            String riderName,
+            String riderPhone
+    ) {
+        this(orderId, orderNumber, shipmentNumber, customerName, customerPhone,
+                shippingAddress, totalWeightGrams, volumetricWeightGrams,
+                carrierSettings, carrierCredentials, riderName, riderPhone, null);
+    }
+}

@@ -6,7 +6,7 @@
  */
 class MaitoStore {
   constructor() {
-    this.activeTenant = 'mito_crunch';
+    this.activeTenant = this.resolveActiveTenant();
     this.cartId = this.getOrCreateCartId();
     this.authToken = localStorage.getItem('maito_auth_token') || null;
     this.userProfile = this.getStoredProfile();
