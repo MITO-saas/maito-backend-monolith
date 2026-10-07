@@ -1,0 +1,17 @@
+{{- if .Values.postgresql.inCluster }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.postgresql.host }}
+  namespace: {{ .Values.namespace.name | default "maito-prod" }}
+  labels:
+    app.kubernetes.io/name: postgresql
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.postgresql.port }}
+      targetPort: 5432
+      name: postgresql
+  selector:
+    app.kubernetes.io/name: postgresql
+{{- end }}
