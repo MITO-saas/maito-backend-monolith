@@ -1255,3 +1255,72 @@ curl -X GET "http://localhost:8080/api/v1/catalog/products" \
 curl -X GET "http://localhost:8080/actuator/health/readiness"
 curl -X GET "http://localhost:8080/actuator/health/liveness"
 ```
+
+
+---
+
+# SECTION 14: 3RD-PARTY LIVE INTEGRATIONS & WEBHOOKS (PHASE 14)
+
+### 1. Initialize Stripe Payment Intent
+```bash
+curl -X POST "http://localhost:8080/api/v1/payments/initialize" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "b182cb12-88ec-4ee3-9e4f-2df302919fa3",
+    "amount": 999.00,
+    "currency": "INR",
+    "gatewayProvider": "STRIPE"
+  }'
+```
+
+### 2. Inbound Stripe Webhook Settlement
+```bash
+curl -X POST "http://localhost:8080/api/v1/payments/webhook/stripe" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Stripe-Signature: t=1791337506,v1=a1b2c3d4e5f6..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "evt_stripe_12345",
+    "type": "payment_intent.succeeded",
+    "data": {
+      "object": {
+        "id": "pi_stripe_12345",
+        "amount": 99900,
+        "currency": "inr",
+        "metadata": {
+          "gatewayOrderId": "pi_stripe_12345"
+        }
+      }
+    }
+  }'
+```
+
+### 3. Inbound Delhivery Fulfillment Webhook
+```bash
+curl -X POST "http://localhost:8080/api/v1/fulfillment/webhooks/delhivery" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "X-Delhivery-Signature: 799d2ca2cde39..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "eventId": "evt_dlv_998877",
+    "waybill": "DLV-987654-IN",
+    "status": "In Transit",
+    "location": "PATNA_CENTRAL_HUB",
+    "remarks": "Package arrived at regional sorting facility"
+  }'
+```
+
+### 4. Inbound Shiprocket Fulfillment Webhook
+```bash
+curl -X POST "http://localhost:8080/api/v1/fulfillment/webhooks/shiprocket" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "X-Webhook-Signature: f0e1d2c3b4a5..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "eventId": "evt_sr_554433",
+    "awb": "SR-112233-AGG",
+    "current_status": "DELIVERED",
+    "location": "PATNA_DOORSTEP"
+  }'
+```
