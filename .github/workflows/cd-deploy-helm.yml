@@ -1,0 +1,111 @@
+name: CD Deploy Helm
+
+on:
+  push:
+    branches:
+      - uat
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Deployment Environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: cd-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging (UAT) Cluster
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/uat' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging.maito.io
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm 3
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.15.0'
+
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.0'
+
+      - name: Configure Kubeconfig for Staging Cluster
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > $HOME/.kube/config 2>/dev/null || echo "${{ secrets.KUBECONFIG_STAGING }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy Helm Chart to Staging Namespace
+        run: |
+          CHART_DIR="deploy/helm/maito-monolith"
+          helm upgrade --install maito-monolith ${CHART_DIR} \
+            -f ${CHART_DIR}/values.yaml \
+            --namespace maito-staging \
+            --create-namespace \
+            --atomic \
+            --timeout 5m \
+            --set app.image.tag=${{ github.sha }}
+
+      - name: Verify Staging Rollout Status
+        run: |
+          kubectl rollout status deployment/maito-monolith-deployment -n maito-staging --timeout=300s
+
+  deploy-production:
+    name: Deploy to Production Cluster
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://maito.io
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm 3
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.15.0'
+
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.0'
+
+      - name: Configure Kubeconfig for Production Cluster
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG_PROD }}" | base64 -d > $HOME/.kube/config 2>/dev/null || echo "${{ secrets.KUBECONFIG_PROD }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy Helm Chart to Production Namespace
+        run: |
+          CHART_DIR="deploy/helm/maito-monolith"
+          RELEASE_TAG=${{ github.ref_name }}
+          if [ -z "${RELEASE_TAG}" ] || [ "${RELEASE_TAG}" = "main" ]; then
+            RELEASE_TAG="latest"
+          fi
+          helm upgrade --install maito-monolith ${CHART_DIR} \
+            -f ${CHART_DIR}/values-production.yaml \
+            --namespace maito-prod \
+            --create-namespace \
+            --atomic \
+            --timeout 5m \
+            --set app.image.tag=${RELEASE_TAG}
+
+      - name: Verify Production Rollout Status
+        run: |
+          kubectl rollout status deployment/maito-monolith-deployment -n maito-prod --timeout=300s
