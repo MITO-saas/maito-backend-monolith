@@ -1094,6 +1094,211 @@
       }
     });
 
+    
+    // --- SAVED ADDRESSES MODAL & CHECKOUT ADDRESS HANDLERS ---
+    async function openSavedAddressesModal() {
+      const modal = document.getElementById('saved-addresses-modal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      await renderSavedAddressesList();
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeSavedAddressesModal() {
+      const modal = document.getElementById('saved-addresses-modal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function toggleAddAddressForm() {
+      const form = document.getElementById('new-address-form') || document.getElementById('new-address-form-container');
+      if (form) {
+        form.classList.toggle('hidden');
+      }
+    }
+
+    async function renderSavedAddressesList() {
+      const container = document.getElementById('saved-addresses-modal-list') || document.getElementById('saved-addresses-list');
+      if (!container) return;
+      try {
+        container.innerHTML = '<div class="p-4 text-center text-slate-400 text-xs">Loading saved addresses...</div>';
+        const addresses = await window.store.fetchSavedAddresses();
+        if (!addresses || addresses.length === 0) {
+          container.innerHTML = '<div class="p-6 text-center text-slate-400 text-xs">No saved addresses found. Add one below.</div>';
+          return;
+        }
+        container.innerHTML = addresses.map(addr => {
+          const name = addr.recipientName || addr.name || 'Recipient';
+          const line1 = addr.addressLine1 || addr.line1 || '';
+          const line2 = addr.addressLine2 || addr.line2 || '';
+          const city = addr.city || '';
+          const state = addr.state || '';
+          const pincode = addr.postalCode || addr.pincode || '';
+          const phone = addr.phone || 'N/A';
+          const isDef = addr.isDefault;
+          const type = addr.addressType || (isDef ? 'DEFAULT' : 'HOME');
+
+          return `
+            <div class="p-4 border border-slate-200 rounded-xl hover:border-amber-500 transition-all mb-3 bg-white shadow-xs flex justify-between items-start">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-bold text-slate-900 text-xs">${name}</span>
+                  <span class="px-2 py-0.5 text-[10px] uppercase font-bold rounded-full ${isDef ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}">
+                    ${type}
+                  </span>
+                </div>
+                <p class="text-xs text-slate-600">${line1}${line2 ? ', ' + line2 : ''}</p>
+                <p class="text-xs text-slate-600">${city}, ${state} - <span class="font-semibold">${pincode}</span></p>
+                <p class="text-[11px] text-slate-400 mt-1">Phone: ${phone}</p>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="p-4 text-center text-rose-500 text-xs">Failed to load addresses: ${err.message}</div>`;
+      }
+    }
+
+    async function handleAddNewAddress(event) {
+      if (event) event.preventDefault();
+      const submitBtn = event ? (event.target.querySelector('button[type="submit"]') || document.getElementById('save-address-btn')) : document.getElementById('save-address-btn');
+      const origText = submitBtn ? submitBtn.innerText : 'Save Address';
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = 'Saving...'; }
+      try {
+        const nameVal = document.getElementById('modal-addr-name')?.value?.trim() || document.getElementById('new-addr-name')?.value?.trim() || '';
+        const phoneVal = document.getElementById('modal-addr-phone')?.value?.trim() || document.getElementById('new-addr-phone')?.value?.trim() || '';
+        const line1Val = document.getElementById('modal-addr-line1')?.value?.trim() || document.getElementById('new-addr-line1')?.value?.trim() || '';
+        const line2Val = document.getElementById('modal-addr-line2')?.value?.trim() || document.getElementById('new-addr-line2')?.value?.trim() || '';
+        const cityVal = document.getElementById('modal-addr-city')?.value?.trim() || document.getElementById('new-addr-city')?.value?.trim() || '';
+        const stateVal = document.getElementById('modal-addr-state')?.value?.trim() || document.getElementById('new-addr-state')?.value?.trim() || '';
+        const pincodeVal = document.getElementById('modal-addr-pincode')?.value?.trim() || document.getElementById('new-addr-pincode')?.value?.trim() || '';
+        const defaultVal = document.getElementById('modal-addr-default')?.checked || document.getElementById('new-addr-default')?.checked || false;
+
+        const addressPayload = {
+          name: nameVal,
+          recipientName: nameVal,
+          phone: phoneVal,
+          line1: line1Val,
+          addressLine1: line1Val,
+          line2: line2Val,
+          addressLine2: line2Val,
+          city: cityVal,
+          state: stateVal,
+          pincode: pincodeVal,
+          postalCode: pincodeVal,
+          isDefault: defaultVal,
+          addressType: 'HOME'
+        };
+
+        if (!addressPayload.name || !addressPayload.phone || !addressPayload.line1 || !addressPayload.pincode) {
+          alert('Please fill out all required address fields.');
+          return;
+        }
+
+        await window.store.saveAddress(addressPayload);
+        toggleAddAddressForm();
+        if (event && event.target && event.target.reset) event.target.reset();
+        await renderSavedAddressesList();
+        if (typeof renderCheckoutSavedAddresses === 'function') {
+          await renderCheckoutSavedAddresses();
+        }
+        showToast('Address saved successfully!');
+      } catch (err) {
+        alert('Failed to save address: ' + err.message);
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = origText; }
+      }
+    }
+
+    async function renderCheckoutSavedAddresses() {
+      const container = document.getElementById('checkout-saved-addresses-list') || document.getElementById('checkout-saved-addresses');
+      const section = document.getElementById('checkout-saved-addresses-section');
+      if (!container) return;
+      try {
+        if (!window.store.isAuthenticated()) {
+          if (section) section.classList.add('hidden');
+          container.innerHTML = '<p class="text-xs text-slate-400">Sign in to use your saved addresses.</p>';
+          return;
+        }
+        const addresses = await window.store.fetchSavedAddresses();
+        if (!addresses || addresses.length === 0) {
+          if (section) section.classList.remove('hidden');
+          container.innerHTML = '<p class="text-xs text-slate-400">No saved addresses found. Enter details manually below.</p>';
+          return;
+        }
+        if (section) section.classList.remove('hidden');
+        container.innerHTML = addresses.map((addr, idx) => {
+          const name = addr.recipientName || addr.name || 'Recipient';
+          const line1 = addr.addressLine1 || addr.line1 || '';
+          const line2 = addr.addressLine2 || addr.line2 || '';
+          const city = addr.city || '';
+          const state = addr.state || '';
+          const pincode = addr.postalCode || addr.pincode || '';
+          const phone = addr.phone || '';
+          const jsonStr = JSON.stringify({ name, line1, line2, city, state, pincode, phone }).replace(/"/g, '&quot;');
+
+          return `
+            <label class="flex items-start gap-2 p-2.5 border border-slate-200 rounded-lg cursor-pointer hover:border-amber-500 hover:bg-amber-50/30 transition-all text-xs bg-white">
+              <input type="radio" name="selected_checkout_address" value="${idx}" class="mt-0.5 accent-amber-500" onchange="applySelectedCheckoutAddress(${jsonStr})">
+              <div>
+                <span class="font-bold text-slate-900">${name}</span> (${addr.addressType || 'Home'}) - <span class="text-slate-600">${line1}, ${city} (${pincode})</span>
+              </div>
+            </label>
+          `;
+        }).join('');
+      } catch (e) {
+        console.warn('Could not load checkout addresses:', e);
+      }
+    }
+
+    function applySelectedCheckoutAddress(addr) {
+      if (!addr) return;
+      const name = addr.recipientName || addr.name || '';
+      const phone = addr.phone || '';
+      const line1 = addr.addressLine1 || addr.line1 || '';
+      const line2 = addr.addressLine2 || addr.line2 || '';
+      const fullAddress = line1 + (line2 ? ', ' + line2 : '');
+      const city = addr.city || '';
+      const state = addr.state || '';
+      const pincode = addr.postalCode || addr.pincode || '';
+
+      if (document.getElementById('ship-name')) document.getElementById('ship-name').value = name;
+      if (document.getElementById('checkout-name')) document.getElementById('checkout-name').value = name;
+
+      if (document.getElementById('ship-phone')) document.getElementById('ship-phone').value = phone;
+      if (document.getElementById('checkout-phone')) document.getElementById('checkout-phone').value = phone;
+
+      if (document.getElementById('ship-line1')) document.getElementById('ship-line1').value = fullAddress;
+      if (document.getElementById('checkout-address')) document.getElementById('checkout-address').value = fullAddress;
+
+      if (document.getElementById('ship-city')) document.getElementById('ship-city').value = city;
+      if (document.getElementById('checkout-city')) document.getElementById('checkout-city').value = city;
+
+      if (document.getElementById('ship-state')) document.getElementById('ship-state').value = state;
+      if (document.getElementById('checkout-state')) document.getElementById('checkout-state').value = state;
+
+      if (document.getElementById('ship-pincode')) document.getElementById('ship-pincode').value = pincode;
+      if (document.getElementById('checkout-pincode')) document.getElementById('checkout-pincode').value = pincode;
+    }
+
+    function switchToNewAddressInCheckout() {
+      document.querySelectorAll('input[name="selected_checkout_address"]').forEach(r => r.checked = false);
+      if (document.getElementById('ship-name')) document.getElementById('ship-name').value = '';
+      if (document.getElementById('checkout-name')) document.getElementById('checkout-name').value = '';
+      if (document.getElementById('ship-phone')) document.getElementById('ship-phone').value = '';
+      if (document.getElementById('checkout-phone')) document.getElementById('checkout-phone').value = '';
+      if (document.getElementById('ship-line1')) document.getElementById('ship-line1').value = '';
+      if (document.getElementById('checkout-address')) document.getElementById('checkout-address').value = '';
+      if (document.getElementById('ship-city')) document.getElementById('ship-city').value = 'Patna';
+      if (document.getElementById('checkout-city')) document.getElementById('checkout-city').value = 'Patna';
+      if (document.getElementById('ship-state')) document.getElementById('ship-state').value = 'Bihar';
+      if (document.getElementById('checkout-state')) document.getElementById('checkout-state').value = 'Bihar';
+      if (document.getElementById('ship-pincode')) document.getElementById('ship-pincode').value = '800001';
+      if (document.getElementById('checkout-pincode')) document.getElementById('checkout-pincode').value = '800001';
+    }
+
     function renderCartBadge() {
       const count = store.getCartCount();
       const badge = document.getElementById('cart-badge');
@@ -1133,12 +1338,12 @@
 
         listEl.innerHTML = items.map(item => `
           <div class="flex items-center space-x-3 p-3 bg-white rounded-2xl border border-slate-100 shadow-sm hover:border-amber-200 transition-colors">
-            <img src="${item.productImageUrl || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
+            <img src="${item.primaryImageUrl || item.productImageUrl || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
                  alt="${item.productName || 'Makhana'}" 
                  class="w-16 h-16 object-cover rounded-xl bg-slate-50 border border-slate-100 flex-shrink-0" />
             <div class="flex-grow min-w-0">
               <h4 class="text-xs font-bold text-slate-900 truncate">${item.productName || 'Makhana'}</h4>
-              <p class="text-[11px] text-slate-400">${item.variantSku || ''}</p>
+              <p class="text-[11px] text-slate-400">${item.sku || item.variantSku || ''}</p>
               <div class="text-xs font-extrabold text-amber-600 mt-1">${store.formatCurrency(item.unitPrice || 0)}</div>
             </div>
             <!-- Quantity Controls -->
@@ -1501,48 +1706,65 @@
       if (window.lucide) window.lucide.createIcons();
     }
 
-    // Interactive Add-To-Cart Action from Product Cards
-    const PRE_SEEDED_VARIANTS = {
-      'Peri Peri Crunch': 'f1000000-0000-0000-0000-000000000001',
-      'Himalayan Pink Salt': 'f1000000-0000-0000-0000-000000000003',
-      'Mint Magic': 'f1000000-0000-0000-0000-000000000004'
-    };
-
-    async function handleAddToCart(buttonEl, productName) {
-      const variantId = PRE_SEEDED_VARIANTS[productName] || 'f1000000-0000-0000-0000-000000000001';
-      
-      const originalHtml = buttonEl.innerHTML;
-      buttonEl.disabled = true;
-      buttonEl.innerHTML = `
-        <svg class="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-white inline" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-        </svg>
-        <span>Adding...</span>
-      `;
-
-      try {
-        await store.addToCart(variantId, 1);
-        buttonEl.innerHTML = `
-          <i data-lucide="check" class="w-3.5 h-3.5 inline"></i>
-          <span>Added!</span>
+    // Interactive Add-To-Cart Action with Dynamic Variant Mapping
+    async function handleAddToCart(btn, variantId, quantity = 1) {
+      if (!variantId) {
+        console.error('Cannot add item to cart: variantId is missing.');
+        return;
+      }
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `
+          <svg class="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-white inline" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Adding...</span>
         `;
-        buttonEl.classList.remove('bg-slate-900');
-        buttonEl.classList.add('bg-emerald-600');
-        showToast(`Added "${productName}" to Cart!`);
+      }
+      try {
+        let resolvedVariantId = variantId;
+        // If variantId is not a standard UUID (e.g., product name or slug), resolve dynamically
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(variantId)) {
+          try {
+            const catRes = await window.store.apiFetch('/api/v1/catalog/products');
+            if (catRes.success && Array.isArray(catRes.data)) {
+              const match = catRes.data.find(p => p.name === variantId || p.slug === variantId || p.id === variantId);
+              if (match) {
+                resolvedVariantId = match.priceRange?.variantId || match.id;
+              }
+            }
+          } catch (resErr) {
+            console.warn('Dynamic catalog variant resolution warning:', resErr);
+          }
+        }
 
-        setTimeout(() => {
-          buttonEl.innerHTML = originalHtml;
-          buttonEl.classList.remove('bg-emerald-600');
-          buttonEl.classList.add('bg-slate-900');
-          buttonEl.disabled = false;
-          if (window.lucide) window.lucide.createIcons();
-        }, 1500);
-
+        await window.store.addToCart(resolvedVariantId, quantity);
+        if (typeof renderCartBadge === 'function') renderCartBadge();
+        if (typeof renderCartDrawer === 'function') renderCartDrawer();
+        if (typeof showToast === 'function') showToast('Added to Cart!');
+        if (btn) {
+          btn.innerHTML = `
+            <i data-lucide="check" class="w-3.5 h-3.5 inline"></i>
+            <span>Added! ✓</span>
+          `;
+          btn.classList.remove('bg-slate-900');
+          btn.classList.add('bg-emerald-600');
+          setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('bg-emerald-600');
+            btn.classList.add('bg-slate-900');
+            btn.disabled = false;
+            if (window.lucide) window.lucide.createIcons();
+          }, 1200);
+        }
       } catch (err) {
-        alert('Cart Error: ' + err.message);
-        buttonEl.innerHTML = originalHtml;
-        buttonEl.disabled = false;
+        alert('Could not add product to cart: ' + err.message);
+        if (btn) {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
       }
     }
 
@@ -1640,7 +1862,7 @@
                         <span class="text-2xl font-black text-slate-900">₹149</span>
                         <span class="text-xs text-slate-400 line-through">₹199</span>
                       </div>
-                      <button onclick="handleAddToCart(this, '${item.name}')" 
+                      <button onclick="handleAddToCart(this, '${item.variantId || item.variants?.[0]?.id || item.id || item.name}', 1)" 
                               class="px-4 py-2.5 bg-slate-900 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm active:scale-95">
                         <i data-lucide="plus" class="w-4 h-4"></i>
                         <span>Add to Cart</span>

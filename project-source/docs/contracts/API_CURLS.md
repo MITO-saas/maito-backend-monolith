@@ -1575,3 +1575,46 @@ curl -X POST "http://localhost:8080/api/v1/catalog/products" \
     ]
   }'
 ```
+
+---
+
+## 8. Logistics & 3PL Carrier Configuration Management
+
+### List Configured Logistics Carriers (Tenant Admin)
+Retrieves all configured 3PL logistics carriers (Delhivery, Shiprocket, BlueDart, Self-Fleet) with current status, service client, and hub location:
+```bash
+curl -X GET "http://localhost:8080/api/v1/admin/fulfillment/carriers" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
+
+### Update Carrier Active Status or Configuration (Tenant Admin)
+Enables/disables a carrier or updates logistics credentials and pickup hub location:
+```bash
+curl -X PUT "http://localhost:8080/api/v1/admin/fulfillment/carriers/DELHIVERY" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+  -d '{
+    "isEnabled": true,
+    "settings": {
+      "pickupLocation": "DELHIVERY_PATNA_DC",
+      "client": "MITO_CRUNCH_EXPRESS"
+    }
+  }'
+```
+
+---
+
+## 9. Operator Order Lifecycle: Direct Order Cancellation
+
+### Cancel Order & Release Reserved Stock (Tenant Admin)
+Atomically transitions an order to `CANCELLED`, releases any reserved warehouse inventory back to available stock, and refunds redeemed loyalty coins:
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/orders/7104c555-0753-4553-938a-dfe19e119875/cancel" \
+  -H "Accept: application/json" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```

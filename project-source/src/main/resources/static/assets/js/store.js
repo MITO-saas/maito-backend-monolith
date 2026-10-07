@@ -5,6 +5,41 @@
  * checkout flow, and fulfillment tracking.
  */
 class MaitoStore {
+    resolveActiveTenant() {
+    try {
+      // 1. Query parameter (?tenant=...)
+      if (typeof window !== 'undefined' && window.location && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        const tenantParam = params.get('tenant');
+        if (tenantParam && tenantParam.trim() !== '') {
+          const cleaned = tenantParam.trim().toLowerCase();
+          localStorage.setItem('maito_active_tenant', cleaned);
+          return cleaned;
+        }
+      }
+      // 2. Subdomain inspection (e.g. everrites.maito.io or everrites.localhost)
+      if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+        const parts = window.location.hostname.split('.');
+        if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'localhost') {
+          const sub = parts[0].toLowerCase();
+          localStorage.setItem('maito_active_tenant', sub);
+          return sub;
+        }
+      }
+      // 3. Stored session cache
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('maito_active_tenant');
+        if (stored && stored.trim() !== '' && stored !== 'undefined' && stored !== 'null') {
+          return stored.trim().toLowerCase();
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to resolve dynamic tenant, falling back to default:', e);
+    }
+    // 4. Default fallback
+    return 'mito_crunch';
+  }
+
   constructor() {
     this.activeTenant = this.resolveActiveTenant();
     this.cartId = this.getOrCreateCartId();
@@ -63,9 +98,11 @@ class MaitoStore {
   }
 
   async apiFetch(url, options = {}) {
+    const tenantId = (this.activeTenant && this.activeTenant !== 'undefined' && this.activeTenant !== 'null') ? this.activeTenant : this.resolveActiveTenant();
+    this.activeTenant = tenantId;
     const headers = {
       'Accept': 'application/json',
-      'X-Tenant-ID': this.activeTenant,
+      'X-Tenant-ID': tenantId,
       'X-Cart-ID': this.cartId,
       ...(options.headers || {})
     };
@@ -445,17 +482,26 @@ class MaitoStore {
   }
 
   getCartPayable() {
-    const subtotal = Number(this.cart.subtotalAmount || this.cart.subtotal || 0);
-    const discount = this.appliedCoupon ? Number(this.appliedCoupon.discountAmount || 0) : 0;
+    const subtotal = this.cart ? Number(this.cart.subtotalAmount || this.cart.subtotal || 0) : 0;
+    const discount = this.appliedCoupon ? Number(this.appliedCoupon.discountAmount || 0) : (this.cart ? Number(this.cart.discountAmount || 0) : 0);
+    const taxableAmount = Math.max(0, subtotal - discount);
+    // 5% standard GST estimate aligned with backend default
+    const estimatedTax = Number((taxableAmount * 0.05).toFixed(2));
     const freeShipping = this.appliedCoupon ? Number(this.appliedCoupon.freeShippingSavings || 0) > 0 : false;
-    const threshold = (this.storeSettings && this.storeSettings.commercialSettings && this.storeSettings.commercialSettings.freeShippingThreshold) 
-      ? Number(this.storeSettings.commercialSettings.freeShippingThreshold) 
-      : 499;
-    const shipping = (subtotal >= threshold || freeShipping) ? 0 : 49;
-    const totalBeforeCoins = Math.max(0, subtotal - discount + shipping);
-    const coinsRedeemed = Math.min(this.coinsToRedeem, totalBeforeCoins);
+    const shippingFee = (this.storeSettings && this.storeSettings.commercialSettings && this.storeSettings.commercialSettings.defaultShippingFee)
+      ? Number(this.storeSettings.commercialSettings.defaultShippingFee)
+      : (taxableAmount >= 499 || freeShipping ? 0 : 50);
+    const totalBeforeCoins = Math.max(0, taxableAmount + estimatedTax + shippingFee);
+    const coinsRedeemed = Math.min(this.coinsToRedeem || 0, totalBeforeCoins);
     const total = Math.max(0, totalBeforeCoins - coinsRedeemed);
-    return { subtotal, discount, shipping, coinsRedeemed, total };
+    return {
+      subtotal: Number(subtotal.toFixed(2)),
+      discount: Number(discount.toFixed(2)),
+      tax: estimatedTax,
+      shipping: shippingFee,
+      coinsRedeemed: Number(coinsRedeemed.toFixed(2)),
+      total: Number(total.toFixed(2))
+    };
   }
 
   // --- CHECKOUT & ORDER ---
@@ -584,4 +630,9 @@ class MaitoStore {
 }
 
 // Global Singleton Instance
-window.store = new MaitoStore();
+if (typeof window !== 'undefined') {
+  window.store = new MaitoStore();
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { MaitoStore };
+}
