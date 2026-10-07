@@ -1,0 +1,17 @@
+{{- if .Values.elasticsearch.inCluster }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.elasticsearch.host }}
+  namespace: {{ .Values.namespace.name | default "maito-prod" }}
+  labels:
+    app.kubernetes.io/name: elasticsearch
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.elasticsearch.port }}
+      targetPort: 9200
+      name: http
+  selector:
+    app.kubernetes.io/name: elasticsearch
+{{- end }}

@@ -1,0 +1,16 @@
+apiVersion: v2
+name: maito-monolith
+description: Production Helm 3 chart for Maito Multi-Tenant E-Commerce Monolith Platform
+type: application
+version: 1.0.0
+appVersion: "15.0.0"
+keywords:
+  - e-commerce
+  - multi-tenant
+  - spring-boot
+  - postgresql
+  - redis
+  - elasticsearch
+maintainers:
+  - name: Maito SRE & Cloud Platform Team
+    email: sre@maito.io

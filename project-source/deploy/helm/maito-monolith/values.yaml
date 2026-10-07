@@ -1,0 +1,141 @@
+# Default values for maito-monolith.
+# Designed for local development, staging, Minikube, and Kind clusters.
+
+nameOverride: ""
+fullnameOverride: ""
+
+namespace:
+  create: true
+  name: maito-prod
+
+replicaCount: 2
+
+image:
+  repository: maito-registry.io/maito-backend-monolith
+  pullPolicy: IfNotPresent
+  tag: "v15.0.0"
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  name: maito-monolith-sa
+  annotations: {}
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/actuator/prometheus"
+  prometheus.io/port: "8080"
+
+podSecurityContext:
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2048Mi
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 0
+
+probes:
+  liveness:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    httpGet:
+      path: /actuator/health/readiness
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  host: maito.io
+  tlsSecretName: maito-wildcard-tls
+
+certManager:
+  enabled: true
+  email: devops@maito.io
+  server: https://acme-v02.api.letsencrypt.org/directory
+
+# In-Cluster Database & Services Configuration
+postgresql:
+  inCluster: true
+  host: postgres
+  port: 5432
+  database: maito_db
+  user: maito_user
+  password: maito_pass_k8s_2026
+  storageSize: 10Gi
+  storageClass: ""
+
+redis:
+  inCluster: true
+  host: redis
+  port: 6379
+  password: maito_redis_pass_k8s_2026
+  storageSize: 5Gi
+  storageClass: ""
+
+elasticsearch:
+  inCluster: true
+  host: elasticsearch
+  port: 9200
+  storageSize: 10Gi
+  storageClass: ""
+
+env:
+  SPRING_PROFILES_ACTIVE: prod
+  MAITO_RATE_LIMITING_ENABLED: "true"
+  JWT_SECRET: "9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f"
+  ZIPKIN_ENDPOINT: "http://tempo.monitoring.svc.cluster.local:9411/api/v2/spans"

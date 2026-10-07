@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: maito-monolith
+  namespace: maito-prod
+  labels:
+    app.kubernetes.io/name: maito-monolith
+    app.kubernetes.io/component: backend-monolith
+    app.kubernetes.io/part-of: maito-platform
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: maito-monolith
+    app.kubernetes.io/component: backend-monolith
