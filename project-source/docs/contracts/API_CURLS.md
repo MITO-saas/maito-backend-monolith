@@ -1324,3 +1324,36 @@ curl -X POST "http://localhost:8080/api/v1/fulfillment/webhooks/shiprocket" \
     "location": "PATNA_DOORSTEP"
   }'
 ```
+
+---
+
+## SECTION 15: ELASTICSEARCH FULL-TEXT SEARCH & FACETED DISCOVERY ENGINE
+
+### 1. Storefront Product Search with Typo Tolerance & Facets
+```bash
+curl -X GET "http://localhost:8080/api/v1/search/products?q=pari+peri&page=0&size=10&sort=relevance" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+### 2. Search-as-You-Type Autocomplete Suggestions
+```bash
+curl -X GET "http://localhost:8080/api/v1/search/suggest?q=peri" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+### 3. Faceted Filter Query (Brand, Category & Price Range)
+```bash
+curl -X GET "http://localhost:8080/api/v1/search/products?category=roasted-makhana&brand=Mito%20Crunch&minPrice=100&maxPrice=200&inStock=true&sort=price_asc" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Accept: application/json"
+```
+
+### 4. Admin Batch Re-Indexing Catalog Trigger
+```bash
+curl -X POST "http://localhost:8080/api/v1/admin/search/reindex" \
+  -H "X-Tenant-ID: mito_crunch" \
+  -H "Authorization: Bearer <TENANT_ADMIN_JWT>" \
+  -H "Content-Type: application/json"
+```

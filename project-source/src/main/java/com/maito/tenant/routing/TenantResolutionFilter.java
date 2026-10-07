@@ -82,6 +82,7 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
+        TenantContextHolder.clear();
         TenantResolutionResult resolutionResult = resolveTenant(request);
 
         if (resolutionResult.isSuspended()) {

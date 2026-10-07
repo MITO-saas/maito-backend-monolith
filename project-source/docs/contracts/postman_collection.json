@@ -3891,6 +3891,183 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Phase 15: Elasticsearch Full-Text Search & Catalog Aggregations",
+      "item": [
+        {
+          "name": "Search Products with Facets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/search/products?q=peri&sort=relevance&page=0&size=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "peri"
+                },
+                {
+                  "key": "sort",
+                  "value": "relevance"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Typeahead Autocomplete Suggestions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/search/suggest?q=peri",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "suggest"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "peri"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Faceted Filter Search (Brand, Category, Price)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/search/products?category=roasted-makhana&brand=Mito%20Crunch&minPrice=100&maxPrice=250&inStock=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "roasted-makhana"
+                },
+                {
+                  "key": "brand",
+                  "value": "Mito Crunch"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "100"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "250"
+                },
+                {
+                  "key": "inStock",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Batch Re-index Tenant Catalog",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tenant_admin_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/search/reindex",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "search",
+                "reindex"
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
