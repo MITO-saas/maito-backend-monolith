@@ -107,10 +107,10 @@ management:
         http.server.requests: 50ms, 100ms, 250ms, 500ms, 1s, 2s
   tracing:
     sampling:
-      probability: 1.0 # 100% in local/dev; adjust via env for prod
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.0} # Set to 1.0 when running Tempo / distributed tracing
   zipkin:
     tracing:
-      endpoint: ${ZIPKIN_ENDPOINT:http://tempo:9411/api/v2/spans}
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
 # Rate Limiting & Gateway Configuration
 maito:
   search:
