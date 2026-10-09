@@ -46,3 +46,5 @@ buildNumber.properties
 .env.*.local
 *.pem
 *.key
+ 
+node_modules/

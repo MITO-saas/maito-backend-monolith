@@ -5,18 +5,48 @@
  */
 class MaitoAdminApp {
   constructor() {
-    this.adminToken = localStorage.getItem('maito_admin_token') || null;
+    const params = (typeof window !== 'undefined' && window.location) ? new URLSearchParams(window.location.search) : null;
+    const urlTenant = params ? params.get('tenant') : null;
+    const storedTenant = (typeof localStorage !== 'undefined') ? (localStorage.getItem('maito_admin_active_tenant') || localStorage.getItem('maito_admin_tenant')) : null;
+    let initialTenant = (urlTenant && urlTenant.trim() !== '') ? urlTenant.trim().toLowerCase() : (storedTenant || 'mitocrunch');
+    if (initialTenant === 'mito_crunch') initialTenant = 'mitocrunch';
+    if (initialTenant === 'vijiya_solar') initialTenant = 'vijiyasolar';
+
+    this.activeTenant = initialTenant;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('maito_admin_active_tenant', this.activeTenant);
+    }
+
+    this.adminToken = this.getTenantItem('token') || (typeof localStorage !== 'undefined' ? localStorage.getItem('maito_admin_token') : null);
     this.adminProfile = this.getStoredProfile();
-    this.activeTenant = localStorage.getItem('maito_admin_tenant') || 'mito_crunch';
     this.currentTab = 'analytics';
     this.cache = {};
 
     this.init();
   }
 
+  getTenantStorageKey(key) {
+    return `maito_admin_${this.activeTenant}_${key}`;
+  }
+
+  getTenantItem(key) {
+    if (typeof localStorage === 'undefined') return null;
+    return localStorage.getItem(this.getTenantStorageKey(key));
+  }
+
+  setTenantItem(key, value) {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(this.getTenantStorageKey(key), value);
+  }
+
+  removeTenantItem(key) {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.removeItem(this.getTenantStorageKey(key));
+  }
+
   getStoredProfile() {
     try {
-      const stored = localStorage.getItem('maito_admin_profile');
+      const stored = this.getTenantItem('profile') || (typeof localStorage !== 'undefined' ? localStorage.getItem('maito_admin_profile') : null);
       return stored ? JSON.parse(stored) : null;
     } catch (e) {
       return null;
@@ -42,10 +72,16 @@ class MaitoAdminApp {
     const demoFillBtn = document.getElementById('demo-fill-btn');
     if (demoFillBtn) {
       demoFillBtn.addEventListener('click', () => {
-        document.getElementById('login-email').value = 'admin@mitocrunch.com';
+        const tenantSelect = document.getElementById('login-tenant');
+        const tenantVal = (tenantSelect ? tenantSelect.value : null) || this.activeTenant || 'mitocrunch';
+        let email = 'admin@mitocrunch.com';
+        if (tenantVal === 'vijiyasolar') email = 'admin@vijiyasolar.com';
+        else if (tenantVal === 'everrites') email = 'admin@everrites.com';
+
+        document.getElementById('login-email').value = email;
         document.getElementById('login-password').value = 'Admin@2026';
-        document.getElementById('login-tenant').value = 'mito_crunch';
-        this.showToast('Credentials filled for Mito Crunch Admin!', 'info');
+        if (tenantSelect) tenantSelect.value = tenantVal;
+        this.showToast(`Credentials filled for [${tenantVal}] Admin!`, 'info');
       });
     }
 
@@ -93,9 +129,12 @@ class MaitoAdminApp {
       this.adminProfile = data.profile || { firstName: 'Crunch', lastName: 'Admin', role: 'ROLE_TENANT_ADMIN', email };
       this.activeTenant = tenant;
 
-      localStorage.setItem('maito_admin_token', this.adminToken);
-      localStorage.setItem('maito_admin_profile', JSON.stringify(this.adminProfile));
-      localStorage.setItem('maito_admin_tenant', this.activeTenant);
+      this.setTenantItem('token', this.adminToken);
+      this.setTenantItem('profile', JSON.stringify(this.adminProfile));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('maito_admin_active_tenant', this.activeTenant);
+        localStorage.setItem('maito_admin_tenant', this.activeTenant);
+      }
 
       this.showToast(`Welcome back, ${this.adminProfile.firstName || 'Admin'}!`, 'success');
       this.renderAuthenticatedUI();
@@ -118,19 +157,54 @@ class MaitoAdminApp {
   logout() {
     this.adminToken = null;
     this.adminProfile = null;
-    localStorage.removeItem('maito_admin_token');
-    localStorage.removeItem('maito_admin_profile');
+    this.removeTenantItem('token');
+    this.removeTenantItem('profile');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('maito_admin_token');
+      localStorage.removeItem('maito_admin_profile');
+    }
     this.showToast('You have been securely signed out.', 'info');
     this.renderLoginUI();
   }
 
   setTenant(tenant) {
-    this.activeTenant = tenant;
-    localStorage.setItem('maito_admin_tenant', tenant);
-    this.showToast(`Switched active tenant to [${tenant}]`, 'info');
-    document.querySelectorAll('.active-tenant-label').forEach(el => el.textContent = tenant);
-    // Reload current tab with new tenant context
-    this.switchTab(this.currentTab);
+    const cleaned = (tenant || 'mitocrunch').trim().toLowerCase();
+    const normalized = (cleaned === 'mito_crunch') ? 'mitocrunch' : (cleaned === 'vijiya_solar' ? 'vijiyasolar' : cleaned);
+    this.activeTenant = normalized;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('maito_admin_active_tenant', normalized);
+      localStorage.setItem('maito_admin_tenant', normalized);
+    }
+
+    // Synchronize URL query parameter ?tenant=
+    if (typeof window !== 'undefined' && window.history && window.history.pushState) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tenant', normalized);
+      window.history.pushState({}, '', url.toString());
+    }
+
+    // Refresh credentials strictly for this tenant
+    this.adminToken = this.getTenantItem('token') || null;
+    this.adminProfile = this.getStoredProfile();
+    this.cache = {};
+
+    this.showToast(`Switched active tenant to [${normalized}]`, 'info');
+    document.querySelectorAll('.active-tenant-label').forEach(el => el.textContent = normalized);
+
+    const selector = document.getElementById('header-tenant-selector');
+    if (selector) selector.value = normalized;
+
+    const storefrontLink = document.getElementById('admin-storefront-link');
+    if (storefrontLink) {
+      storefrontLink.href = `/?tenant=${normalized}`;
+    }
+
+    if (this.isAuthenticated()) {
+      this.renderAuthenticatedUI();
+      this.switchTab(this.currentTab || 'analytics');
+    } else {
+      this.renderLoginUI();
+    }
   }
 
   apiFetch(url, options = {}) {
@@ -196,6 +270,10 @@ class MaitoAdminApp {
       tenantSelector.value = this.activeTenant;
     }
     document.querySelectorAll('.active-tenant-label').forEach(el => el.textContent = this.activeTenant);
+    const storefrontLink = document.getElementById('admin-storefront-link');
+    if (storefrontLink) {
+      storefrontLink.href = `/?tenant=${this.activeTenant}`;
+    }
 
     if (window.lucide) lucide.createIcons();
   }

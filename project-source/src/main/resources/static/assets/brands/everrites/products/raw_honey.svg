@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#422006" />
+      <stop offset="100%" stop-color="#201003" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="600" height="600" rx="36" fill="url(#bgGrad)" />
+  <circle cx="300" cy="270" r="160" fill="#F59E0B" opacity="0.1" />
+  <circle cx="300" cy="270" r="130" fill="#F59E0B" opacity="0.15" />
+  <g transform="translate(300, 260) scale(1.6)" filter="url(#shadow)">
+    <ellipse cx="0" cy="0" rx="28" ry="34" fill="#D97706" stroke="#FDE68A" stroke-width="3"/><rect x="-18" y="-40" width="36" height="12" rx="3" fill="#B45309"/>
+  </g>
+  <text x="300" y="470" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">Organic Raw Wild Honey</text>
+  <text x="300" y="505" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600" fill="#F59E0B" letter-spacing="1.5">CERTIFIED WILD FOREST APIARY HARVEST</text>
+</svg>
