@@ -78,6 +78,40 @@
       background: #94A3B8;
     }
   </style>
+
+    <script>
+    // Early synchronous tenant resolution to eliminate visual layout flash
+    (function() {
+      try {
+        let tenant = null;
+        if (window.location.search) {
+          const p = new URLSearchParams(window.location.search);
+          const t = p.get('tenant');
+          if (t && t.trim()) {
+            const c = t.trim().toLowerCase();
+            tenant = (c === 'mito_crunch') ? 'mitocrunch' : (c === 'vijiya_solar' ? 'vijiyasolar' : c);
+          }
+        }
+        if (!tenant && window.location.pathname) {
+          const m = window.location.pathname.match(/\/tenant\/([a-zA-Z0-9_-]+)/i);
+          if (m && m[1]) {
+            const c = m[1].trim().toLowerCase();
+            tenant = (c === 'mito_crunch') ? 'mitocrunch' : (c === 'vijiya_solar' ? 'vijiyasolar' : c);
+          }
+        }
+        window.__ACTIVE_TENANT__ = tenant;
+
+        // Synchronously toggle CSS displays before body paint
+        const style = document.createElement('style');
+        if (!tenant) {
+          style.innerHTML = '#sdui-root, #cart-btn { display: none !important; } #platform-directory-gateway { display: flex !important; }';
+        } else {
+          style.innerHTML = '#platform-directory-gateway { display: none !important; } #sdui-root { display: block !important; }';
+        }
+        document.head.appendChild(style);
+      } catch(e) {}
+    })();
+  </script>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-amber-100 selection:text-amber-900">
 
@@ -89,8 +123,8 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
       
       <!-- Brand Logo -->
-      <a href="/" class="flex items-center space-x-3 group">
-        <img id="brand-logo" src="/assets/brands/mito_crunch/brand/logo_crunch.svg" alt="Mito Crunch Logo" class="h-10 w-auto group-hover:scale-105 transition-transform" />
+      <a href="/" id="brand-logo-link" class="flex items-center space-x-3 group" title="Maito Multi-Tenant Commerce">
+        <img id="brand-logo" src="/assets/brands/maito/brand/logo_maito.svg" alt="Platform Logo" class="h-10 w-auto group-hover:scale-105 transition-transform" />
       </a>
       <!-- Omnisearch Bar with Edge-Ngram Autocomplete -->
       <div id="search-header-container" class="relative flex-grow max-w-md mx-4 lg:mx-8 hidden sm:block">
@@ -120,14 +154,9 @@
 
 
       <!-- Desktop Navigation -->
-      <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-700">
-        <a href="#featured" class="hover:text-amber-600 transition-colors">Trending Flavors</a>
-        <a href="#story" class="hover:text-amber-600 transition-colors">Our Roots</a>
-        <a href="#about" class="hover:text-amber-600 transition-colors">Mithila Wetlands</a>
-        <button onclick="openTrackingModal()" class="hover:text-amber-600 transition-colors flex items-center space-x-1 font-semibold text-slate-800">
-          <i data-lucide="truck" class="w-4 h-4 text-amber-600"></i>
-          <span>Track Order</span>
-        </button>
+      <nav id="header-nav-links" class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-700">
+        <a href="#directory" class="hover:text-amber-600 transition-colors font-semibold">Store Directory</a>
+        <a href="#architecture" class="hover:text-amber-600 transition-colors font-semibold">Architecture</a>
         <a href="/admin.html" class="hover:text-amber-600 transition-colors flex items-center space-x-1.5 font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg text-xs">
           <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-600"></i>
           <span>Admin Portal</span>
@@ -137,10 +166,39 @@
       <!-- Action Items & User Controls -->
       <div class="flex items-center space-x-3 sm:space-x-4">
         
-        <!-- Tenant Badge Indicator -->
-        <div class="hidden lg:flex items-center bg-slate-100 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-          Tenant: <span id="tenant-badge" class="ml-1 text-slate-900 font-bold">mito_crunch</span>
+        <!-- Tenant Switcher Dropdown -->
+        <div class="relative hidden lg:block" id="tenant-switcher-wrapper">
+          <button type="button" id="tenant-switcher-btn" onclick="toggleTenantDropdown()" 
+                  class="flex items-center space-x-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 transition-all shadow-xs cursor-pointer">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Tenant:</span>
+            <span id="tenant-badge" class="font-bold text-slate-900">Platform Gateway</span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-500"></i>
+          </button>
+          <!-- Dropdown Menu -->
+          <div id="tenant-switcher-dropdown" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 divide-y divide-slate-100">
+            <div class="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Switch Active Storefront</div>
+            <div class="py-1">
+              <a href="/?tenant=mitocrunch" class="flex items-center justify-between px-4 py-2.5 hover:bg-amber-50 text-xs font-semibold text-slate-800 hover:text-amber-900 transition-colors">
+                <span class="flex items-center space-x-2"><span>🍿</span><span>Mito Crunch</span></span>
+                <span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-mono">db_mitocrunch</span>
+              </a>
+              <a href="/?tenant=vijiyasolar" class="flex items-center justify-between px-4 py-2.5 hover:bg-sky-50 text-xs font-semibold text-slate-800 hover:text-sky-900 transition-colors">
+                <span class="flex items-center space-x-2"><span>☀️</span><span>Vijiya Solar</span></span>
+                <span class="text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-mono">db_vijiyasolar</span>
+              </a>
+              <a href="/?tenant=everrites" class="flex items-center justify-between px-4 py-2.5 hover:bg-emerald-50 text-xs font-semibold text-slate-800 hover:text-emerald-900 transition-colors">
+                <span class="flex items-center space-x-2"><span>🌾</span><span>Everrites</span></span>
+                <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono">db_everrites</span>
+              </a>
+            </div>
+            <div class="py-1.5 px-2">
+              <a href="/" class="flex items-center space-x-2 px-3 py-1.5 rounded-xl hover:bg-slate-50 text-xs font-bold text-slate-600 transition-colors">
+                <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-slate-400"></i>
+                <span>Platform Gateway (Overview)</span>
+              </a>
+            </div>
+          </div>
         </div>
 
         <!-- Auth Gating Button (Sign In / User Menu) -->
@@ -165,7 +223,172 @@
   </header>
 
   <!-- SDUI Main Content Body -->
-  <main id="sdui-root" class="flex-grow">
+    <!-- ========================================================================= -->
+  <!-- SAAS PLATFORM GATEWAY & TENANT DIRECTORY (ON ROOT /)                     -->
+  <!-- ========================================================================= -->
+  <section id="platform-directory-gateway" class="hidden flex-grow bg-slate-950 text-slate-100 py-16 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <!-- Ambient glowing backdrop -->
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute top-1/2 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-32 left-1/3 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-6xl mx-auto relative z-10">
+      <!-- Platform Hero Badge & Title -->
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-800/80 border border-slate-700/80 text-amber-400 text-xs font-semibold mb-6 shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Enterprise Multi-Tenant SaaS Platform · Zero Data Bleed</span>
+        </div>
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
+          Maito Multi-Tenant Cloud Platform
+        </h1>
+        <p class="mt-5 text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+          Next-generation headless commerce platform with physical <span class="text-white font-semibold">database-per-tenant isolation</span>. 
+          Select an active enterprise storefront to launch its dedicated catalog, branding, and isolated customer sessions.
+        </p>
+      </div>
+
+      <!-- Storefront Directory Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        
+        <!-- Card 1: Mito Crunch -->
+        <div class="group bg-slate-900/90 border border-slate-800 hover:border-amber-500/60 rounded-3xl p-7 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                🌰
+              </div>
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                db_mitocrunch
+              </span>
+            </div>
+            <div class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-1">D2C FMCG · Food & Beverage</div>
+            <h2 class="text-2xl font-black text-white group-hover:text-amber-400 transition-colors">Mito Crunch</h2>
+            <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+              Artisanal slow-roasted jumbo foxnuts cultivated in Mithila freshwater wetlands. Dusted with African peri peri and Himalayan rock salts.
+            </p>
+            <div class="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <span class="flex items-center"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mr-1.5"></i>Live Catalog</span>
+              <span class="font-mono text-slate-500">₹149 - ₹349</span>
+            </div>
+          </div>
+          <div class="mt-8">
+            <a href="/?tenant=mitocrunch" 
+               class="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 flex items-center justify-center space-x-2 shadow-lg shadow-amber-500/20 transition-all">
+              <span>Launch Mito Crunch</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 2: Vijiya Solar -->
+        <div class="group bg-slate-900/90 border border-slate-800 hover:border-sky-500/60 rounded-3xl p-7 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-sky-500/10 hover:-translate-y-1">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                ☀️
+              </div>
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                db_vijiyasolar
+              </span>
+            </div>
+            <div class="text-xs font-bold uppercase tracking-wider text-sky-400 mb-1">CleanTech · Energy Systems</div>
+            <h2 class="text-2xl font-black text-white group-hover:text-sky-400 transition-colors">Vijiya Solar</h2>
+            <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+              MNRE-certified high-efficiency Tier-1 rooftop solar systems, lithium battery hybrid storage, and net-metered commercial generation plants.
+            </p>
+            <div class="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <span class="flex items-center"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mr-1.5"></i>Live Catalog</span>
+              <span class="font-mono text-slate-500">₹1,49,999+</span>
+            </div>
+          </div>
+          <div class="mt-8">
+            <a href="/?tenant=vijiyasolar" 
+               class="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-slate-950 flex items-center justify-center space-x-2 shadow-lg shadow-sky-500/20 transition-all">
+              <span>Launch Vijiya Solar</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Card 3: Everrites -->
+        <div class="group bg-slate-900/90 border border-slate-800 hover:border-emerald-500/60 rounded-3xl p-7 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1">
+          <div>
+            <div class="flex items-center justify-between mb-6">
+              <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                📦
+              </div>
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                db_everrites
+              </span>
+            </div>
+            <div class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-1">CPG · B2B Wholesale</div>
+            <h2 class="text-2xl font-black text-white group-hover:text-emerald-400 transition-colors">Everrites</h2>
+            <p class="mt-3 text-sm text-slate-400 leading-relaxed">
+              Organic pantry staples, cold-pressed kachi ghani mustard oil, raw forest honey, and stone-ground flours direct from farmer cooperatives.
+            </p>
+            <div class="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <span class="flex items-center"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mr-1.5"></i>Live Catalog</span>
+              <span class="font-mono text-slate-500">₹480 - ₹899</span>
+            </div>
+          </div>
+          <div class="mt-8">
+            <a href="/?tenant=everrites" 
+               class="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 flex items-center justify-center space-x-2 shadow-lg shadow-emerald-500/20 transition-all">
+              <span>Launch Everrites</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Platform Fleet Operations & Admin Banner -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800/80 to-slate-900 border border-slate-700/80 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 flex-shrink-0">
+            <i data-lucide="shield-check" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white">Operator Fleet Administration</h3>
+            <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+              Access centralized operations console to manage tenant catalogs, live inventory, B2B credit approvals, and 3PL carriers.
+            </p>
+          </div>
+        </div>
+        <div class="flex-shrink-0 w-full md:w-auto">
+          <a href="/admin.html" 
+             class="w-full md:w-auto px-6 py-3 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 flex items-center justify-center space-x-2 transition-colors">
+            <i data-lucide="sliders" class="w-4 h-4 text-amber-400"></i>
+            <span>Open Admin Portal</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Architectural Feature Badges -->
+      <div class="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+        <div class="p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
+          <div class="text-emerald-400 font-bold text-sm">PostgreSQL DB-Per-Tenant</div>
+          <div class="text-[11px] text-slate-500 mt-1">Physical isolation per client</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
+          <div class="text-amber-400 font-bold text-sm">Dynamic HikariCP Pools</div>
+          <div class="text-[11px] text-slate-500 mt-1">Sub-second dynamic routing</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
+          <div class="text-sky-400 font-bold text-sm">Zero Data Bleed</div>
+          <div class="text-[11px] text-slate-500 mt-1">Strict scoped auth & carts</div>
+        </div>
+        <div class="p-4 rounded-2xl bg-slate-900/50 border border-slate-800">
+          <div class="text-purple-400 font-bold text-sm">Dynamic SDUI Engine</div>
+          <div class="text-[11px] text-slate-500 mt-1">JSON-driven layouts & styles</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+<main id="sdui-root" class="flex-grow">
     <!-- Skeleton Loading State -->
     <div id="loading-state" class="max-w-7xl mx-auto px-4 py-12 space-y-8 animate-pulse">
       <div class="h-96 bg-slate-200 rounded-2xl w-full"></div>
@@ -492,9 +715,9 @@
       </button>
 
       <div class="text-center mb-6">
-        <img src="/assets/brands/mito_crunch/brand/logo_crunch.svg" alt="Mito Crunch Logo" class="h-8 mx-auto mb-3" />
-        <h3 class="text-xl font-extrabold text-slate-900">Welcome to Mito Crunch</h3>
-        <p class="text-xs text-slate-500 mt-1">Tenant-isolated authentication & customer profile gate</p>
+        <img id="auth-modal-logo" src="/assets/brands/mito_crunch/brand/logo_crunch.svg" alt="Store Logo" class="h-8 mx-auto mb-3" />
+        <h3 id="auth-modal-title" class="text-xl font-extrabold text-slate-900">Welcome to Mito Crunch</h3>
+        <p id="auth-modal-sub" class="text-xs text-slate-500 mt-1">Tenant-isolated authentication & customer profile gate</p>
       </div>
 
       <!-- Tabs Navigation (3 tabs: Sign In, Phone OTP, Create Account) -->
@@ -552,7 +775,7 @@
         <!-- Demo Quick-Fill Buttons -->
         <div class="bg-amber-50/70 border border-amber-100 rounded-xl p-2.5 text-[11px] text-amber-900 flex items-center justify-between">
           <span class="font-semibold">Quick Demo Credentials:</span>
-          <button type="button" onclick="fillDemoCredentials('customer')" class="px-2 py-0.5 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700">
+          <button type="button" id="quick-demo-customer-btn" onclick="fillDemoCredentials('customer')" class="px-2 py-0.5 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700">
             Fill Customer
           </button>
         </div>
@@ -581,7 +804,7 @@
         <div id="otp-step-phone" class="space-y-3">
           <div class="bg-emerald-50/80 border border-emerald-100 rounded-xl p-2.5 text-[11px] text-emerald-900 flex items-center justify-between">
             <span class="font-semibold">Quick Demo Phone:</span>
-            <button type="button" onclick="fillDemoOtp(true)" class="px-2 py-0.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700">
+            <button type="button" id="quick-demo-phone-btn" onclick="fillDemoOtp(true)" class="px-2 py-0.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700">
               Fill Demo Phone
             </button>
           </div>
@@ -615,7 +838,7 @@
 
           <div class="bg-amber-50/80 border border-amber-100 rounded-xl p-2.5 text-[11px] text-amber-900 flex items-center justify-between">
             <span class="font-semibold">Dev Sandbox Code:</span>
-            <button type="button" onclick="fillDemoOtp(false)" class="px-2 py-0.5 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700">
+            <button type="button" id="quick-demo-code-btn" onclick="fillDemoOtp(false)" class="px-2 py-0.5 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700">
               Fill Code (123456)
             </button>
           </div>
@@ -773,7 +996,7 @@
   </div>
 
   <!-- Load Client State Manager -->
-  <script src="/assets/js/store.js"></script>
+  <script src="/assets/js/store.js?v=19.1.2"></script>
 
   <!-- SDUI & Frontend Reactive Controller -->
   <script>
@@ -851,8 +1074,17 @@
 
     function fillDemoCredentials(role) {
       if (role === 'customer') {
-        document.getElementById('login-email').value = 'customer@mitocrunch.com';
-        document.getElementById('login-password').value = 'Customer@2026';
+        const tenant = (window.store && window.store.activeTenant) || 'mitocrunch';
+        const emailInput = document.getElementById('login-email');
+        const passInput = document.getElementById('login-password');
+        if (tenant === 'vijiyasolar') {
+          if (emailInput) emailInput.value = 'customer@vijiyasolar.com';
+        } else if (tenant === 'everrites') {
+          if (emailInput) emailInput.value = 'customer@everrites.com';
+        } else {
+          if (emailInput) emailInput.value = 'customer@mitocrunch.com';
+        }
+        if (passInput) passInput.value = 'Customer@2026';
       }
     }
 
@@ -1006,10 +1238,8 @@
     function fillDemoOtp(phoneOnly) {
       const phoneInput = document.getElementById('otp-phone-input');
       if (phoneInput) phoneInput.value = '+919876543210';
-      if (!phoneOnly) {
-        const codeInput = document.getElementById('otp-code-input');
-        if (codeInput) codeInput.value = '123456';
-      }
+      const codeInput = document.getElementById('otp-code-input');
+      if (codeInput) codeInput.value = '123456';
     }
 
     function renderHeaderAuth() {
@@ -1338,7 +1568,7 @@
 
         listEl.innerHTML = items.map(item => `
           <div class="flex items-center space-x-3 p-3 bg-white rounded-2xl border border-slate-100 shadow-sm hover:border-amber-200 transition-colors">
-            <img src="${item.primaryImageUrl || item.productImageUrl || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
+            <img src="${item.primaryImageUrl || item.productImageUrl || '/assets/brands/placeholder-product.svg'}" 
                  alt="${item.productName || 'Makhana'}" 
                  class="w-16 h-16 object-cover rounded-xl bg-slate-50 border border-slate-100 flex-shrink-0" />
             <div class="flex-grow min-w-0">
@@ -1769,7 +1999,91 @@
     }
 
     // SDUI Component Registry
-    const ComponentRegistry = {
+        const TENANT_THEMES = {
+      mitocrunch: {
+        name: 'Mito Crunch',
+        tagline: 'Farm-Fresh Roasted Jumbo Makhana from Mithila',
+        title: 'Mito Crunch | Farm-Fresh Roasted Jumbo Makhana',
+        logo: '/assets/brands/mito_crunch/brand/logo_crunch.svg',
+        logoHref: '/?tenant=mitocrunch',
+        searchPlaceholder: 'Search flavors, peri peri, roasted makhana...',
+        welcomeTitle: 'Welcome to Mito Crunch',
+        welcomeSub: 'Mithila jumbo foxnuts & gourmet roasted superfoods',
+        navHtml: `
+          <a href="#featured" class="hover:text-amber-600 transition-colors font-semibold">Trending Flavors</a>
+          <a href="#story" class="hover:text-amber-600 transition-colors font-semibold">Our Roots</a>
+          <a href="#about" class="hover:text-amber-600 transition-colors font-semibold">Mithila Wetlands</a>
+          <a href="/" class="hover:text-amber-600 transition-colors flex items-center space-x-1 font-semibold text-slate-800">
+            <i data-lucide="grid" class="w-4 h-4 text-slate-600"></i>
+            <span>All Stores</span>
+          </a>
+          <button onclick="openTrackingModal()" class="hover:text-amber-600 transition-colors flex items-center space-x-1 font-semibold text-slate-800">
+            <i data-lucide="truck" class="w-4 h-4 text-amber-600"></i>
+            <span>Track Order</span>
+          </button>
+          <a href="/admin.html?tenant=mitocrunch" class="hover:text-amber-600 transition-colors flex items-center space-x-1.5 font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg text-xs">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-600"></i>
+            <span>Admin Portal</span>
+          </a>
+        `
+      },
+      vijiyasolar: {
+        name: 'Vijiya Solar',
+        tagline: 'Tier-1 Rooftop Solar Solutions, Inverters & Storage',
+        title: 'Vijiya Solar | Tier-1 Rooftop Solar Solutions & EPC',
+        logo: '/assets/brands/vijiya_solar/brand/logo_solar.svg',
+        logoHref: '/?tenant=vijiyasolar',
+        searchPlaceholder: 'Search solar systems, rooftop panels, inverters...',
+        welcomeTitle: 'Welcome to Vijiya Solar',
+        welcomeSub: 'Clean rooftop solar systems, lithium storage & net metering',
+        navHtml: `
+          <a href="#featured" class="hover:text-sky-600 transition-colors font-semibold">Solar Packages</a>
+          <a href="#story" class="hover:text-sky-600 transition-colors font-semibold">EPC Engineering</a>
+          <a href="#about" class="hover:text-sky-600 transition-colors font-semibold">MNRE Subsidy</a>
+          <a href="/" class="hover:text-sky-600 transition-colors flex items-center space-x-1 font-semibold text-slate-800">
+            <i data-lucide="grid" class="w-4 h-4 text-slate-600"></i>
+            <span>All Stores</span>
+          </a>
+          <button onclick="openTrackingModal()" class="hover:text-sky-600 transition-colors flex items-center space-x-1 font-semibold text-slate-800">
+            <i data-lucide="truck" class="w-4 h-4 text-sky-600"></i>
+            <span>Track Order</span>
+          </button>
+          <a href="/admin.html?tenant=vijiyasolar" class="hover:text-sky-600 transition-colors flex items-center space-x-1.5 font-semibold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2.5 py-1 rounded-lg text-xs">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-sky-600"></i>
+            <span>Admin Portal</span>
+          </a>
+        `
+      },
+      everrites: {
+        name: 'Everrites',
+        tagline: 'Consumer Packaged Goods & Direct-from-Farmer Wholesale',
+        title: 'Everrites | Consumer Packaged Goods & Wholesale',
+        logo: '/assets/brands/everrites/brand/logo_everrites.svg',
+        logoHref: '/?tenant=everrites',
+        searchPlaceholder: 'Search packaged goods, bulk FMCG, wholesale...',
+        welcomeTitle: 'Welcome to Everrites',
+        welcomeSub: 'Direct-from-farmer pantry staples, oils & wholesale flour',
+        navHtml: `
+          <a href="#featured" class="hover:text-emerald-600 transition-colors font-semibold">Organic Staples</a>
+          <a href="#story" class="hover:text-emerald-600 transition-colors font-semibold">Farmer Co-ops</a>
+          <a href="#about" class="hover:text-emerald-600 transition-colors font-semibold">Wholesale Terms</a>
+          <a href="/" class="hover:text-emerald-600 transition-colors flex items-center space-x-1 font-semibold text-slate-800">
+            <i data-lucide="grid" class="w-4 h-4 text-slate-600"></i>
+            <span>All Stores</span>
+          </a>
+          <button onclick="openTrackingModal()" class="hover:text-emerald-600 transition-colors flex items-center space-x-1 font-semibold text-slate-800">
+            <i data-lucide="truck" class="w-4 h-4 text-emerald-600"></i>
+            <span>Track Order</span>
+          </button>
+          <a href="/admin.html?tenant=everrites" class="hover:text-emerald-600 transition-colors flex items-center space-x-1.5 font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>Admin Portal</span>
+          </a>
+        `
+      }
+    };
+
+const ComponentRegistry = {
       // 1. PROMO_STRIP
       PROMO_STRIP: function(payload, sectionId) {
         return `
@@ -1829,48 +2143,28 @@
         `;
       },
 
-      // 3. FEATURED_GRID
+      // 3. FEATURED_GRID (Dynamic Database-Driven Storefront Catalog)
       FEATURED_GRID: function(payload, sectionId) {
-        const items = payload.items || [];
+        const tenant = (window.store && window.store.activeTenant) || 'mitocrunch';
+        const cfg = TENANT_THEMES[tenant] || TENANT_THEMES.mitocrunch;
+        const heading = payload?.heading || (cfg.name + ' Catalog');
+
         return `
-          <section id="featured" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-            <div class="text-center max-w-2xl mx-auto mb-14">
-              <span class="text-xs font-bold uppercase tracking-widest text-amber-600">Pure Roasted Goodness</span>
-              <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2">${payload.heading || 'Trending Flavors'}</h2>
-              <p class="text-slate-600 mt-3 text-sm sm:text-base">Slowly roasted to perfection with cold-pressed olive oil and natural Himalayan herbs.</p>
+          <section id="featured" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+            <div class="text-center max-w-3xl mx-auto mb-10">
+              <span id="catalog-section-badge" class="text-xs font-bold uppercase tracking-widest text-amber-600">Direct from Warehouse</span>
+              <h2 id="catalog-section-heading" class="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-2 tracking-tight">${heading}</h2>
+              <p id="catalog-section-sub" class="text-slate-600 mt-3 text-sm sm:text-base leading-relaxed">Live catalog inventory synchronized directly from PostgreSQL tenant store.</p>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              ${items.map(item => `
-                <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 flex flex-col group">
-                  <div class="relative bg-slate-50 overflow-hidden aspect-square flex items-center justify-center">
-                    <img src="${item.imageUrl || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
-                         alt="${item.name}" 
-                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    ${item.tag ? `
-                      <span class="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-slate-800 shadow-sm border border-slate-100">
-                        ${item.tag}
-                      </span>
-                    ` : ''}
-                  </div>
-                  <div class="p-6 flex flex-col flex-grow justify-between space-y-4">
-                    <div>
-                      <h3 class="text-xl font-bold text-slate-900 group-hover:text-amber-600 transition-colors">${item.name}</h3>
-                      <p class="text-xs text-slate-500 mt-1">100g Jumbo Pack | 100% Organic Foxnuts | 0% Trans Fat</p>
-                    </div>
-                    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-                      <div class="flex items-baseline space-x-1.5">
-                        <span class="text-2xl font-black text-slate-900">₹149</span>
-                        <span class="text-xs text-slate-400 line-through">₹199</span>
-                      </div>
-                      <button onclick="handleAddToCart(this, '${item.variantId || item.variants?.[0]?.id || item.id || item.name}', 1)" 
-                              class="px-4 py-2.5 bg-slate-900 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 shadow-sm active:scale-95">
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                        <span>Add to Cart</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              `).join('')}
+
+            <!-- Dynamic Category Filter Chips -->
+            <div id="category-pills-bar" class="flex items-center justify-center flex-wrap gap-2.5 mb-10 min-h-[40px]">
+              <!-- Dynamically populated by renderDynamicCatalog -->
+            </div>
+
+            <!-- Dynamic Products Grid -->
+            <div id="dynamic-product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+              <!-- Dynamically populated by renderDynamicCatalog -->
             </div>
           </section>
         `;
@@ -1878,36 +2172,39 @@
 
       // 4. BRAND_STORY
       BRAND_STORY: function(payload, sectionId) {
+        const tenant = (window.store && window.store.activeTenant) || 'mitocrunch';
+        const isSolar = tenant === 'vijiyasolar';
+        const isEver = tenant === 'everrites';
+
+        const defaultTag = isSolar ? 'Tier-1 Engineering' : (isEver ? 'Farm Co-op Origin' : 'Mithila Sourcing Heritage');
+        const stat1Num = isSolar ? '50MW+' : (isEver ? '500+' : '100%');
+        const stat1Label = isSolar ? 'Installed Solar Capacity' : (isEver ? 'Verified Partner Farms' : 'Organic Wetland Harvest');
+        const stat2Num = isSolar ? '25 Yr' : (isEver ? 'Zero' : 'Zero');
+        const stat2Label = isSolar ? 'Linear Power Warranty' : (isEver ? 'Artificial Preservatives' : 'Trans-Fat Cooking Oil');
+
         return `
           <section id="story" class="bg-amber-50/60 border-y border-amber-100/80 py-20">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 <div class="space-y-6">
                   <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 text-xs font-bold uppercase tracking-wider">
-                    <span>Mithila Sourcing Heritage</span>
+                    <span>${payload?.tag || defaultTag}</span>
                   </div>
                   <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight">
-                    ${payload.heading || 'From Pond to Pack'}
+                    ${payload?.heading || 'Our Story'}
                   </h2>
                   <p class="text-slate-700 text-base sm:text-lg leading-relaxed font-normal">
-                    ${payload.body || 'Directly sourced from Bihar farmers, roasted with zero trans-fats.'}
+                    ${payload?.body || 'Directly sourced from verified regional partners.'}
                   </p>
                   <div class="grid grid-cols-2 gap-4 pt-4">
                     <div class="bg-white p-4 rounded-xl border border-amber-100 shadow-sm">
-                      <span class="block text-2xl font-black text-amber-600">100%</span>
-                      <span class="text-xs font-semibold text-slate-600">Organic Wetland Harvest</span>
+                      <span class="block text-2xl font-black text-amber-600">${stat1Num}</span>
+                      <span class="text-xs font-semibold text-slate-600">${stat1Label}</span>
                     </div>
                     <div class="bg-white p-4 rounded-xl border border-amber-100 shadow-sm">
-                      <span class="block text-2xl font-black text-amber-600">Zero</span>
-                      <span class="text-xs font-semibold text-slate-600">Trans-Fat & Preservatives</span>
+                      <span class="block text-2xl font-black text-amber-600">${stat2Num}</span>
+                      <span class="text-xs font-semibold text-slate-600">${stat2Label}</span>
                     </div>
-                  </div>
-                </div>
-                <div class="relative">
-                  <div class="rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
-                    <img src="/assets/brands/mito_crunch/banners/promo_holi_sale.webp" 
-                         alt="Heritage Sourcing" 
-                         class="w-full h-80 sm:h-96 object-cover" />
                   </div>
                 </div>
               </div>
@@ -1918,19 +2215,21 @@
 
       // 5. FOOTER_LINKS
       FOOTER_LINKS: function(payload, sectionId) {
-        const policies = payload.policies || ['Privacy Policy', 'Terms of Service', 'Refund Policy'];
-        const social = payload.social || { instagram: '@mitocrunch' };
+        const tenant = (window.store && window.store.activeTenant) || 'mitocrunch';
+        const cfg = TENANT_THEMES[tenant] || TENANT_THEMES.mitocrunch;
+        const policies = payload?.policies || ['Privacy Policy', 'Terms of Service', 'Refund Policy'];
+        const social = payload?.social || { instagram: '@' + tenant };
         return `
           <footer class="bg-slate-950 text-slate-400 py-16 border-t border-slate-800">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div class="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-slate-800">
                 <div class="md:col-span-2 space-y-4">
-                  <img src="/assets/brands/mito_crunch/brand/logo_crunch.svg" alt="Mito Crunch" class="h-9 w-auto brightness-200" />
+                  <img src="${cfg.logo}" alt="${cfg.name}" class="h-9 w-auto brightness-200" onerror="this.src='/assets/brands/placeholder-product.svg';" />
                   <p class="text-sm text-slate-400 max-w-sm">
-                    Premium organic roasted makhana handpicked from the wetlands of Mithila, Bihar. Nutritious snacking crafted for modern lifestyles.
+                    ${cfg.tagline}. High-efficiency fulfillment synchronized with multi-tenant warehouse infrastructure.
                   </p>
                   <div class="text-xs text-amber-400 font-semibold">
-                    Follow us: <a href="https://instagram.com" class="hover:underline">${social.instagram || '@mitocrunch'}</a>
+                    Follow us: <a href="https://instagram.com" class="hover:underline">${social.instagram || ('@' + tenant)}</a>
                   </div>
                 </div>
                 <div>
@@ -1940,23 +2239,16 @@
                   </ul>
                 </div>
                 <div>
-                  <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-4">Platform Architecture</h4>
-                  <p class="text-xs text-slate-500 leading-relaxed">
-                    Powered by Maito Server-Driven UI (SDUI) Engine with isolated PostgreSQL multi-tenancy & immutable static asset storage.
-                  </p>
-                  <div class="mt-3 pt-2">
-                    <a href="/admin.html" class="inline-flex items-center space-x-1.5 text-xs text-amber-400 hover:text-amber-300 font-semibold bg-amber-950/60 border border-amber-800/60 px-3 py-1.5 rounded-lg transition-colors">
-                      <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-400"></i>
-                      <span>Operator Admin Portal</span>
-                    </a>
-                  </div>
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-white mb-4">Platform Gateway</h4>
+                  <p class="text-xs text-slate-500 mb-3">Enterprise Multi-Tenant Cloud Architecture</p>
+                  <a href="/" class="inline-flex items-center space-x-1.5 text-xs text-amber-500 hover:text-amber-400 font-bold">
+                    <span>Back to Directory</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                  </a>
                 </div>
               </div>
-              <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-                <span>&copy; ${new Date().getFullYear()} Mito Crunch. All rights reserved.</span>
-                <span class="flex items-center space-x-1">
-                  <span>Phase 8 Interactive Client Certified</span>
-                </span>
+              <div class="pt-8 text-center text-xs text-slate-600">
+                &copy; ${new Date().getFullYear()} ${cfg.name}. All rights reserved. Powered by Maito Monolith Platform.
               </div>
             </div>
           </footer>
@@ -1964,9 +2256,338 @@
       }
     };
 
+    function toggleTenantDropdown() {
+      const dd = document.getElementById('tenant-switcher-dropdown');
+      if (dd) dd.classList.toggle('hidden');
+    }
+
+    // Dismiss tenant dropdown on click outside
+    window.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('tenant-switcher-wrapper');
+      const dd = document.getElementById('tenant-switcher-dropdown');
+      if (wrapper && dd && !wrapper.contains(e.target)) {
+        dd.classList.add('hidden');
+      }
+    });
+
+    function renderFallbackStorefront(tenantId, errorMsg) {
+      const rootEl = document.getElementById('sdui-root');
+      if (!rootEl) return;
+      const cfg = TENANT_THEMES[tenantId] || TENANT_THEMES.mitocrunch;
+      rootEl.innerHTML = `
+        <div class="max-w-5xl mx-auto px-4 py-16 text-center">
+          <div class="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-slate-100 text-slate-700 text-xs font-bold mb-6 border border-slate-200">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Tenant Storefront: ${cfg.name} (${tenantId})</span>
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">${cfg.name} Storefront</h1>
+          <p class="text-slate-600 text-base max-w-xl mx-auto mb-8">${cfg.tagline}</p>
+          <div class="flex justify-center space-x-4">
+            <button onclick="location.reload()" class="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center space-x-2 shadow-md">
+              <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+              <span>Reload Storefront</span>
+            </button>
+            <a href="/" class="px-5 py-2.5 bg-slate-100 text-slate-800 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all flex items-center space-x-2 border border-slate-200">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              <span>Back to Store Directory</span>
+            </a>
+          </div>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+        // Dynamic Database-Driven Catalog Engine
+    let activeCatalogCategoryId = null;
+
+    function buildProductCardHtml(product) {
+      const tenant = (window.store && window.store.activeTenant) || 'mitocrunch';
+      const theme = TENANT_THEMES[tenant] || TENANT_THEMES.mitocrunch;
+
+      const title = product.title || product.name || 'Product';
+      const description = product.description || product.shortDescription || '';
+      const categoryName = product.categoryName || (product.categorySlug ? product.categorySlug.replace(/-/g, ' ') : 'Catalog');
+      const primaryImage = product.primaryImageUrl || theme.logo || '/assets/brands/placeholder-product.svg';
+
+      // Resolve primary variant
+      const variants = Array.isArray(product.variants) && product.variants.length > 0 ? product.variants : [];
+      const primaryVariant = variants[0] || null;
+      const variantId = primaryVariant ? primaryVariant.id : product.id;
+      const price = primaryVariant ? primaryVariant.price : (product.minPrice || product.priceRange?.salePrice || product.price || 0);
+      const compareAtPrice = primaryVariant ? primaryVariant.compareAtPrice : (product.priceRange?.mrp || 0);
+      const availableStock = primaryVariant ? (primaryVariant.availableStock ?? 0) : (product.availableStock ?? 10);
+
+      // Stock Badge
+      let stockBadgeHtml = '';
+      if (availableStock > 10) {
+        stockBadgeHtml = `<span class="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>In Stock</span>`;
+      } else if (availableStock > 0 && availableStock <= 10) {
+        stockBadgeHtml = `<span class="inline-flex items-center text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span>Only ${availableStock} Left!</span>`;
+      } else {
+        stockBadgeHtml = `<span class="inline-flex items-center text-[10px] font-bold text-red-600 bg-red-50 px-2.5 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-1.5"></span>Out of Stock</span>`;
+      }
+
+      // Strike price
+      const hasDiscount = compareAtPrice && Number(compareAtPrice) > Number(price);
+      const comparePriceHtml = hasDiscount 
+        ? `<span class="text-xs text-slate-400 line-through font-medium ml-1.5">${window.store.formatCurrency(compareAtPrice)}</span>` 
+        : '';
+
+      const isOutOfStock = availableStock === 0;
+
+      return `
+        <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 flex flex-col group p-4 relative">
+          <!-- Card Image Container -->
+          <div class="relative bg-slate-50 overflow-hidden rounded-xl aspect-square flex items-center justify-center mb-4">
+            <img src="${primaryImage}" 
+                 alt="${title}" 
+                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                 onerror="this.src='/assets/brands/placeholder-product.svg';" />
+            
+            <div class="absolute top-2.5 left-2.5">
+              <span class="category-tag inline-block text-[10px] font-extrabold uppercase tracking-wider text-slate-700 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-md shadow-sm border border-slate-100">
+                ${categoryName}
+              </span>
+            </div>
+            
+            <div class="absolute top-2.5 right-2.5">
+              ${stockBadgeHtml}
+            </div>
+          </div>
+
+          <!-- Product Details -->
+          <div class="flex-grow flex flex-col justify-between space-y-3">
+            <div>
+              <h3 class="product-title text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors line-clamp-1">${title}</h3>
+              <p class="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">${description}</p>
+            </div>
+
+            <!-- Price & Add to Cart Action -->
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+              <div class="flex items-baseline">
+                <span class="text-lg font-black text-slate-900">${window.store.formatCurrency(price)}</span>
+                ${comparePriceHtml}
+              </div>
+
+              <button ${isOutOfStock ? 'disabled' : ''} 
+                      onclick="handleAddToCart(this, '${variantId}', 1)" 
+                      class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 ${isOutOfStock ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-slate-900 hover:bg-amber-600 text-white'}">
+                <i data-lucide="${isOutOfStock ? 'slash' : 'shopping-bag'}" class="w-3.5 h-3.5"></i>
+                <span>${isOutOfStock ? 'Sold Out' : 'Add to Cart'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function filterCatalogByCategory(categoryId) {
+      activeCatalogCategoryId = categoryId || null;
+      
+      const chips = document.querySelectorAll('.category-chip');
+      chips.forEach(chip => {
+        const chipCatId = chip.getAttribute('data-category-id');
+        if ((!activeCatalogCategoryId && !chipCatId) || (activeCatalogCategoryId === chipCatId)) {
+          chip.className = 'category-chip px-4 py-2 rounded-full text-xs font-bold transition-all border border-slate-900 bg-slate-900 text-white shadow-sm';
+        } else {
+          chip.className = 'category-chip px-4 py-2 rounded-full text-xs font-bold transition-all border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300';
+        }
+      });
+
+      await loadCatalogProducts(activeCatalogCategoryId);
+    }
+
+    async function loadCatalogProducts(categoryId = null) {
+      const grid = document.getElementById('dynamic-product-grid');
+      if (!grid) return;
+
+      grid.innerHTML = `
+        <div class="col-span-full py-12 flex flex-col items-center justify-center space-y-3">
+          <svg class="animate-spin h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span class="text-xs font-semibold text-slate-500">Querying live tenant catalog from database...</span>
+        </div>
+      `;
+
+      try {
+        const params = categoryId ? { categoryId } : {};
+        const products = await window.store.fetchProducts(params);
+
+        const loadingState = document.getElementById('loading-state');
+        if (loadingState) loadingState.remove();
+
+        if (!products || products.length === 0) {
+          grid.innerHTML = `
+            <div class="col-span-full py-16 text-center bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
+              <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                <i data-lucide="package-open" class="w-8 h-8"></i>
+              </div>
+              <h3 class="text-base font-bold text-slate-900 mb-1">No products published in this store yet</h3>
+              <p class="text-xs text-slate-500 max-w-sm mx-auto">Check back soon or explore other categories in our catalog.</p>
+            </div>
+          `;
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        }
+
+        grid.innerHTML = products.map(product => buildProductCardHtml(product)).join('');
+        if (window.lucide) window.lucide.createIcons();
+      } catch (err) {
+        console.error('Failed to load catalog products:', err);
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100 p-6">
+            <p class="text-sm font-semibold">Unable to load catalog from database.</p>
+            <button onclick="loadCatalogProducts('${categoryId || ''}')" class="mt-3 px-4 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">Retry</button>
+          </div>
+        `;
+      }
+    }
+
+    async function renderDynamicCatalog(tenant) {
+      const pillsBar = document.getElementById('category-pills-bar');
+      const grid = document.getElementById('dynamic-product-grid');
+      if (!pillsBar || !grid) return;
+
+      // 1. Fetch live categories
+      try {
+        const categories = await window.store.fetchCategories();
+        let pillsHtml = `
+          <button type="button" onclick="filterCatalogByCategory(null)" data-category-id="" class="category-chip px-4 py-2 rounded-full text-xs font-bold transition-all border border-slate-900 bg-slate-900 text-white shadow-sm">
+            All Products
+          </button>
+        `;
+
+        if (Array.isArray(categories) && categories.length > 0) {
+          categories.forEach(cat => {
+            pillsHtml += `
+              <button type="button" onclick="filterCatalogByCategory('${cat.id}')" data-category-id="${cat.id}" class="category-chip px-4 py-2 rounded-full text-xs font-bold transition-all border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300">
+                ${cat.name}
+              </button>
+            `;
+          });
+        }
+        pillsBar.innerHTML = pillsHtml;
+      } catch (catErr) {
+        console.warn('Failed to render category pills:', catErr);
+      }
+
+      // 2. Fetch and render products
+      activeCatalogCategoryId = null;
+      await loadCatalogProducts(null);
+    }
+
+    async function searchAndRenderCatalog(query) {
+      const grid = document.getElementById('dynamic-product-grid');
+      const heading = document.getElementById('catalog-section-heading');
+      const badge = document.getElementById('catalog-section-badge');
+      if (!grid) return;
+
+      grid.innerHTML = `
+        <div class="col-span-full py-12 flex flex-col items-center justify-center space-y-3">
+          <svg class="animate-spin h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span class="text-xs font-semibold text-slate-500">Searching catalog database for "${query}"...</span>
+        </div>
+      `;
+
+      try {
+        const res = await window.store.searchProducts({ q: query });
+        const items = res?.products || [];
+        
+        if (heading) heading.innerText = `Search Results: "${query}"`;
+        if (badge) badge.innerText = `Found ${items.length} matching item${items.length === 1 ? '' : 's'}`;
+
+        if (items.length === 0) {
+          grid.innerHTML = `
+            <div class="col-span-full py-16 text-center bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
+              <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                <i data-lucide="search-x" class="w-8 h-8"></i>
+              </div>
+              <h3 class="text-base font-bold text-slate-900 mb-1">No products found matching "${query}"</h3>
+              <p class="text-xs text-slate-500 max-w-sm mx-auto mb-4">Try checking for typos or searching for a broader term.</p>
+              <button onclick="clearSearchInput();" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all">Clear Search</button>
+            </div>
+          `;
+        } else {
+          grid.innerHTML = items.map(p => {
+            const mapped = {
+              id: p.id,
+              title: p.name,
+              name: p.name,
+              description: p.shortDescription,
+              categoryName: p.categoryName || p.categorySlug,
+              primaryImageUrl: p.primaryImage,
+              variants: [{
+                id: p.id,
+                price: p.price,
+                compareAtPrice: p.mrp,
+                availableStock: p.availableStock
+              }]
+            };
+            return buildProductCardHtml(mapped);
+          }).join('');
+        }
+
+        const featuredSection = document.getElementById('featured');
+        if (featuredSection) featuredSection.scrollIntoView({ behavior: 'smooth' });
+        if (window.lucide) window.lucide.createIcons();
+      } catch (e) {
+        console.error('Catalog search failed:', e);
+      }
+    }
+
+    // Fallback Catalog Products Grid Renderer
+    async function renderCatalogFallback(tenantId, cfg) {
+      const rootEl = document.getElementById('sdui-root');
+      if (!rootEl) return;
+
+      rootEl.innerHTML = `
+        <div class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-12">
+          <!-- Fallback Hero Banner -->
+          <div class="relative rounded-3xl overflow-hidden bg-slate-900 text-white p-8 sm:p-12 shadow-2xl">
+            <div class="max-w-2xl">
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-amber-300 mb-4 border border-white/10">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
+                ${cfg.name} Official Catalog
+              </span>
+              <h1 class="text-3xl sm:text-5xl font-black tracking-tight mb-4">${cfg.name}</h1>
+              <p class="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">${cfg.tagline}</p>
+            </div>
+          </div>
+
+          <!-- Dynamic Products Catalog Section -->
+          <section id="featured">
+            <div class="flex items-center justify-between mb-8">
+              <div>
+                <h2 id="catalog-section-heading" class="text-2xl font-black text-slate-900 tracking-tight">Available Products</h2>
+                <p id="catalog-section-sub" class="text-xs text-slate-500 mt-1">Live inventory from isolated tenant database (${tenantId})</p>
+              </div>
+            </div>
+
+            <!-- Category Pills Bar -->
+            <div id="category-pills-bar" class="flex items-center justify-start flex-wrap gap-2.5 mb-8 min-h-[40px]"></div>
+
+            <!-- Dynamic Product Grid -->
+            <div id="dynamic-product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8"></div>
+          </section>
+        </div>
+      `;
+      rootEl.classList.remove('hidden');
+      await renderDynamicCatalog(tenantId);
+      if (window.lucide) window.lucide.createIcons();
+    }
+
     // SDUI Dynamic Orchestrator
     async function initSDUI() {
       const tenantId = store.activeTenant;
+      const rootEl = document.getElementById('sdui-root');
+      const promoStrip = document.getElementById('promo-strip-container');
+      const cfg = TENANT_THEMES[tenantId] || TENANT_THEMES.mitocrunch;
+
       try {
         const response = await fetch('/api/v1/cms/pages/home', {
           headers: {
@@ -1980,22 +2601,25 @@
         }
 
         const resData = await response.json();
-        if (!resData.success || !resData.data) {
-          throw new Error('Failed to parse SDUI layout envelope');
+        const sections = resData.data && resData.data.sections;
+        if (!resData.success || !sections || sections.length === 0) {
+          throw new Error('No published SDUI sections found in CMS');
         }
 
-        const { pageSlug, title, seo, theme, sections } = resData.data;
+        const { pageSlug, title, seo, theme } = resData.data;
 
         // Apply SEO metadata
-        if (seo && seo.metaTitle) {
+        if (seo && seo.metaTitle && (tenantId === 'mitocrunch' || !seo.metaTitle.toLowerCase().includes('mito crunch'))) {
           document.title = seo.metaTitle;
+        } else if (cfg) {
+          document.title = cfg.title;
         }
 
         // Separate promo strip from main flow if present
         const promoSection = sections.find(s => s.componentType === 'PROMO_STRIP');
-        if (promoSection && ComponentRegistry.PROMO_STRIP) {
-          document.getElementById('promo-strip-container').innerHTML = 
-            ComponentRegistry.PROMO_STRIP(promoSection.contentPayload, promoSection.sectionId);
+        if (promoSection && ComponentRegistry.PROMO_STRIP && promoStrip) {
+          promoStrip.innerHTML = ComponentRegistry.PROMO_STRIP(promoSection.contentPayload, promoSection.sectionId);
+          promoStrip.classList.remove('hidden');
         }
 
         // Sort sections by displayOrder and render
@@ -2010,14 +2634,101 @@
           }
         }
 
-        const rootEl = document.getElementById('sdui-root');
-        rootEl.innerHTML = renderedHtml;
+        if (rootEl) {
+          rootEl.innerHTML = renderedHtml;
+          rootEl.classList.remove('hidden');
+        }
+
+        // Dynamic database catalog hydration
+        await renderDynamicCatalog(tenantId);
 
       } catch (err) {
-        console.error('SDUI Bootstrapping error:', err);
+        console.warn('SDUI layout unavailable, falling back to direct Catalog API:', err.message);
+        await renderCatalogFallback(tenantId, cfg);
       } finally {
+        const loadingState = document.getElementById('loading-state');
+        if (loadingState) loadingState.remove();
         if (window.lucide) window.lucide.createIcons();
       }
+    }
+
+    // Platform Directory & Multi-Tenant Branding Engine
+    async function updateTenantBranding() {
+      const tenant = store.activeTenant;
+      const logoEl = document.getElementById('brand-logo');
+      const logoLinkEl = document.getElementById('brand-logo-link');
+      const tenantBadgeEl = document.getElementById('tenant-badge');
+      const searchInput = document.getElementById('catalog-search-input');
+      const gatewaySection = document.getElementById('platform-directory-gateway');
+      const sduiRoot = document.getElementById('sdui-root');
+      const promoStrip = document.getElementById('promo-strip-container');
+      const navLinksEl = document.getElementById('header-nav-links');
+      const authLogo = document.getElementById('auth-modal-logo');
+      const authTitle = document.getElementById('auth-modal-title');
+      const authSub = document.getElementById('auth-modal-sub');
+
+      if (!store.hasActiveTenant()) {
+        // Render SaaS Platform Gateway
+        document.title = "Maito Multi-Tenant Cloud Platform | Enterprise SaaS Gateway";
+        if (gatewaySection) gatewaySection.classList.remove('hidden');
+        if (sduiRoot) sduiRoot.classList.add('hidden');
+        if (promoStrip) promoStrip.classList.add('hidden');
+        if (tenantBadgeEl) tenantBadgeEl.textContent = 'Platform Gateway';
+        const cartBtn = document.getElementById('cart-btn');
+        if (cartBtn) cartBtn.classList.add('hidden');
+        if (logoEl) {
+          logoEl.src = "/assets/brands/maito/brand/logo_maito.svg";
+          logoEl.alt = "Maito Cloud Platform Logo";
+        }
+        if (logoLinkEl) logoLinkEl.href = "/";
+        if (searchInput) searchInput.placeholder = 'Search stores across Maito Platform...';
+        if (navLinksEl) {
+          navLinksEl.innerHTML = `
+            <a href="#directory" class="hover:text-indigo-600 transition-colors font-semibold">Store Directory</a>
+            <a href="#architecture" class="hover:text-indigo-600 transition-colors font-semibold">Architecture</a>
+            <a href="/admin.html" class="hover:text-indigo-600 transition-colors flex items-center space-x-1.5 font-semibold text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg text-xs">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5 text-indigo-600"></i>
+              <span>Admin Portal</span>
+            </a>
+          `;
+        }
+        if (window.lucide) window.lucide.createIcons();
+        return;
+      }
+
+      // Hide Directory Gateway and show Storefront SDUI Root
+      if (gatewaySection) gatewaySection.classList.add('hidden');
+      if (sduiRoot) sduiRoot.classList.remove('hidden');
+      const cartBtn = document.getElementById('cart-btn');
+      if (cartBtn) cartBtn.classList.remove('hidden');
+
+      if (tenantBadgeEl) {
+        tenantBadgeEl.textContent = tenant;
+      }
+
+      const cfg = TENANT_THEMES[tenant] || TENANT_THEMES.mitocrunch;
+      document.title = cfg.title;
+      if (logoEl) {
+        logoEl.src = cfg.logo;
+        logoEl.alt = `${cfg.name} Logo`;
+      }
+      if (logoLinkEl) logoLinkEl.href = cfg.logoHref;
+      if (searchInput) searchInput.placeholder = cfg.searchPlaceholder;
+      if (navLinksEl) navLinksEl.innerHTML = cfg.navHtml;
+      if (authLogo) authLogo.src = cfg.logo;
+      if (authTitle) authTitle.textContent = cfg.welcomeTitle;
+      if (authSub) authSub.textContent = cfg.welcomeSub;
+
+      // Fetch dynamic store settings from backend API
+      try {
+        const settings = await store.fetchStoreSettings();
+        if (settings && settings.storeName) {
+          document.title = `${settings.storeName} | Powered by Maito`;
+        }
+      } catch (err) {
+        console.warn('Could not fetch store settings:', err.message);
+      }
+      if (window.lucide) window.lucide.createIcons();
     }
 
     // Initialize Store Subscriptions & Bootstrapping
@@ -2040,11 +2751,22 @@
       renderHeaderAuth();
       renderCartBadge();
 
-      // Bootstrap SDUI and fetch existing cart
-      await initSDUI();
-      await store.fetchCart();
-      if (store.isAuthenticated()) await store.fetchWalletBalance();
-      renderCartBadge();
+      // Configure multi-tenant branding & routing
+      await updateTenantBranding();
+
+      if (store.hasActiveTenant()) {
+        // Bootstrap SDUI and fetch existing cart
+        await initSDUI();
+        await store.fetchCart();
+        if (store.isAuthenticated()) await store.fetchWalletBalance();
+        renderCartBadge();
+      } else {
+        // Clean loading skeleton on directory gateway
+        const loadingState = document.getElementById('loading-state');
+        if (loadingState) loadingState.remove();
+      }
+
+      if (window.lucide) window.lucide.createIcons();
     });
   </script>
 
@@ -2239,8 +2961,11 @@
               selectSuggestion(currentSuggestions[activeSuggestionIndex]);
             } else {
               activeSearchCriteria.q = searchInput.value.trim();
-              openSearchModal();
-              executeCatalogSearch();
+              if (activeSearchCriteria.q) {
+                searchAndRenderCatalog(activeSearchCriteria.q);
+              } else {
+                filterCatalogByCategory(null);
+              }
             }
             dropdown.classList.add('hidden');
           } else if (e.key === 'Escape') {
@@ -2277,6 +3002,17 @@
       document.getElementById('search-clear-btn')?.classList.add('hidden');
       document.getElementById('search-suggestions-dropdown')?.classList.add('hidden');
       activeSuggestionIndex = -1;
+
+      const heading = document.getElementById('catalog-section-heading');
+      if (heading) {
+        const tenant = (window.store && window.store.activeTenant) || 'mitocrunch';
+        const cfg = TENANT_THEMES[tenant] || TENANT_THEMES.mitocrunch;
+        heading.innerText = cfg.name + ' Catalog';
+      }
+      const badge = document.getElementById('catalog-section-badge');
+      if (badge) badge.innerText = 'Direct from Warehouse';
+
+      filterCatalogByCategory(activeCatalogCategoryId);
     }
 
     function renderSuggestions(suggestions) {
@@ -2295,7 +3031,7 @@
              onclick='selectSuggestion(${JSON.stringify(s).replace(/'/g, "&apos;")})'
              class="px-4 py-2.5 flex items-center justify-between hover:bg-amber-50/70 cursor-pointer transition-colors group">
           <div class="flex items-center space-x-3">
-            <img src="${s.primaryImage || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
+            <img src="${s.primaryImage || '/assets/brands/placeholder-product.svg'}" 
                  alt="${s.text}" 
                  class="w-9 h-9 object-cover rounded-lg border border-slate-100 group-hover:scale-105 transition-transform" />
             <div>
@@ -2324,11 +3060,11 @@
     }
 
     function selectSuggestion(item) {
-      document.getElementById('catalog-search-input').value = item.text;
-      document.getElementById('search-suggestions-dropdown').classList.add('hidden');
+      const searchInput = document.getElementById('catalog-search-input');
+      if (searchInput) searchInput.value = item.text;
+      document.getElementById('search-suggestions-dropdown')?.classList.add('hidden');
       activeSearchCriteria.q = item.text;
-      openSearchModal();
-      executeCatalogSearch();
+      searchAndRenderCatalog(item.text);
     }
 
     function openSearchModal() {
@@ -2382,7 +3118,7 @@
           <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group">
             <div>
               <div class="relative overflow-hidden rounded-xl bg-slate-50 aspect-square mb-3">
-                <img src="${p.primaryImage || '/assets/brands/mito_crunch/products/makhana_peri_peri.webp'}" 
+                <img src="${p.primaryImage || '/assets/brands/placeholder-product.svg'}" 
                      alt="${p.name}" 
                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 ${p.discountPercent > 0 ? `<span class="absolute top-2 left-2 bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow-sm">${p.discountPercent}% OFF</span>` : ''}

@@ -5,46 +5,119 @@
  * checkout flow, and fulfillment tracking.
  */
 class MaitoStore {
-    resolveActiveTenant() {
+      resolveActiveTenant() {
     try {
-      // 1. Query parameter (?tenant=...)
-      if (typeof window !== 'undefined' && window.location && window.location.search) {
-        const params = new URLSearchParams(window.location.search);
-        const tenantParam = params.get('tenant');
-        if (tenantParam && tenantParam.trim() !== '') {
-          const cleaned = tenantParam.trim().toLowerCase();
-          localStorage.setItem('maito_active_tenant', cleaned);
-          return cleaned;
+      if (typeof window !== 'undefined' && window.location) {
+        // 1. Query parameter (?tenant=...)
+        if (window.location.search) {
+          const params = new URLSearchParams(window.location.search);
+          const tenantParam = params.get('tenant');
+          if (tenantParam && tenantParam.trim() !== '') {
+            const cleaned = tenantParam.trim().toLowerCase();
+            const normalized = (cleaned === 'mito_crunch') ? 'mitocrunch' : (cleaned === 'vijiya_solar' ? 'vijiyasolar' : cleaned);
+            localStorage.setItem('maito_active_tenant', normalized);
+            return normalized;
+          }
         }
-      }
-      // 2. Subdomain inspection (e.g. everrites.maito.io or everrites.localhost)
-      if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-        const parts = window.location.hostname.split('.');
-        if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'localhost') {
-          const sub = parts[0].toLowerCase();
-          localStorage.setItem('maito_active_tenant', sub);
-          return sub;
+
+        // 1b. Path segment inspection (/tenant/vijiyasolar or /tenant/mitocrunch)
+        if (window.location.pathname) {
+          const pathMatch = window.location.pathname.match(/\/tenant\/([a-zA-Z0-9_-]+)/i);
+          if (pathMatch && pathMatch[1]) {
+            const cleaned = pathMatch[1].trim().toLowerCase();
+            const normalized = (cleaned === 'mito_crunch') ? 'mitocrunch' : (cleaned === 'vijiya_solar' ? 'vijiyasolar' : cleaned);
+            localStorage.setItem('maito_active_tenant', normalized);
+            return normalized;
+          }
         }
-      }
-      // 3. Stored session cache
-      if (typeof localStorage !== 'undefined') {
-        const stored = localStorage.getItem('maito_active_tenant');
-        if (stored && stored.trim() !== '' && stored !== 'undefined' && stored !== 'null') {
-          return stored.trim().toLowerCase();
+
+        // 2. Subdomain inspection (e.g. everrites.maito.io or everrites.localhost)
+        if (window.location.hostname) {
+          const parts = window.location.hostname.split('.');
+          if (parts.length > 2 && parts[0] !== 'www' && parts[0] !== 'localhost') {
+            const sub = parts[0].toLowerCase();
+            localStorage.setItem('maito_active_tenant', sub);
+            return sub;
+          }
+        }
+
+        // 3. Root URL / or /index.html with NO tenant query parameter:
+        // Do NOT default or leak previous tenant across sessions.
+        // Return null so the SaaS Platform Gateway & Tenant Directory is rendered.
+        const pathname = window.location.pathname || '';
+        if (pathname === '/' || pathname === '' || pathname.endsWith('/index.html')) {
+          localStorage.removeItem('maito_active_tenant');
+          return null;
+        }
+
+        // 4. Stored session cache for deep links or secondary views
+        if (typeof localStorage !== 'undefined') {
+          const stored = localStorage.getItem('maito_active_tenant');
+          if (stored && stored.trim() !== '' && stored !== 'undefined' && stored !== 'null') {
+            return stored.trim().toLowerCase();
+          }
         }
       }
     } catch (e) {
-      console.warn('Failed to resolve dynamic tenant, falling back to default:', e);
+      console.warn('Failed to resolve dynamic tenant:', e);
     }
-    // 4. Default fallback
-    return 'mito_crunch';
+    // Default fallback in headless Node test environments
+    return (typeof window === 'undefined') ? 'mitocrunch' : null;
+  }
+
+  hasActiveTenant() {
+    return !!(this.activeTenant && this.activeTenant !== 'undefined' && this.activeTenant !== 'null');
+  }
+
+  getTenantStorageKey(key) {
+    const tenant = this.activeTenant || 'global';
+    return `maito_${tenant}_${key}`;
+  }
+
+  getTenantItem(key) {
+    if (typeof localStorage === 'undefined') return null;
+    return localStorage.getItem(this.getTenantStorageKey(key));
+  }
+
+  setTenantItem(key, value) {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(this.getTenantStorageKey(key), value);
+  }
+
+  removeTenantItem(key) {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.removeItem(this.getTenantStorageKey(key));
+  }
+
+  setTenant(tenant) {
+    if (!tenant) {
+      this.activeTenant = null;
+      this.cartId = null;
+      this.authToken = null;
+      this.refreshToken = null;
+      this.userProfile = null;
+      this.cart = { items: [], subtotalAmount: 0, totalAmount: 0, currencyCode: 'INR' };
+      if (typeof localStorage !== 'undefined') localStorage.removeItem('maito_active_tenant');
+      return;
+    }
+    const cleaned = tenant.trim().toLowerCase();
+    this.activeTenant = (cleaned === 'mito_crunch') ? 'mitocrunch' : (cleaned === 'vijiya_solar' ? 'vijiyasolar' : cleaned);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('maito_active_tenant', this.activeTenant);
+    }
+    this.cartId = this.getOrCreateCartId();
+    this.authToken = this.getTenantItem('access_token') || this.getTenantItem('auth_token') || null;
+    this.refreshToken = this.getTenantItem('refresh_token') || null;
+    this.userProfile = this.getStoredProfile();
+    this.cart = { items: [], subtotalAmount: 0, totalAmount: 0, currencyCode: 'INR' };
   }
 
   constructor() {
     this.activeTenant = this.resolveActiveTenant();
-    this.cartId = this.getOrCreateCartId();
-    this.authToken = localStorage.getItem('maito_auth_token') || null;
-    this.userProfile = this.getStoredProfile();
+    this.cartId = this.hasActiveTenant() ? this.getOrCreateCartId() : null;
+    this.authToken = this.hasActiveTenant() ? (this.getTenantItem('access_token') || this.getTenantItem('auth_token')) : null;
+    this.refreshToken = this.hasActiveTenant() ? this.getTenantItem('refresh_token') : null;
+    this.userProfile = this.hasActiveTenant() ? this.getStoredProfile() : null;
     this.cart = { items: [], subtotalAmount: 0, totalAmount: 0, currencyCode: 'INR' };
     this.appliedCoupon = null;
     this.wallet = { balance: 0.00, currencyCode: 'INR', isActive: true };
@@ -72,19 +145,19 @@ class MaitoStore {
   }
 
   getOrCreateCartId() {
-    let id = localStorage.getItem('maito_cart_id');
+    let id = this.getTenantItem('cart_id');
     if (!id || id === 'null' || id === 'undefined') {
       id = (typeof crypto !== 'undefined' && crypto.randomUUID) 
         ? crypto.randomUUID() 
         : 'guest-' + Math.random().toString(36).substring(2, 15) + '-' + Date.now();
-      localStorage.setItem('maito_cart_id', id);
+      this.setTenantItem('cart_id', id);
     }
     return id;
   }
 
   getStoredProfile() {
     try {
-      const saved = localStorage.getItem('maito_user_profile');
+      const saved = this.getTenantItem('user_profile');
       if (!saved || saved === 'undefined' || saved === 'null') return null;
       const parsed = JSON.parse(saved);
       return (parsed && typeof parsed === 'object') ? parsed : null;
@@ -98,12 +171,23 @@ class MaitoStore {
   }
 
   async apiFetch(url, options = {}) {
-    const tenantId = (this.activeTenant && this.activeTenant !== 'undefined' && this.activeTenant !== 'null') ? this.activeTenant : this.resolveActiveTenant();
-    this.activeTenant = tenantId;
+    if (!this.hasActiveTenant()) {
+      const errMsg = 'Tenant context required: No active tenant selected. Please select a store from the platform directory.';
+      console.warn('apiFetch halted:', errMsg, url);
+      if (typeof window !== 'undefined') {
+        const gateway = document.getElementById('platform-directory-gateway');
+        const sduiRoot = document.getElementById('sdui-root');
+        if (gateway) gateway.classList.remove('hidden');
+        if (sduiRoot) sduiRoot.classList.add('hidden');
+      }
+      throw new Error(errMsg);
+    }
+
+    const tenantId = this.activeTenant;
     const headers = {
       'Accept': 'application/json',
       'X-Tenant-ID': tenantId,
-      'X-Cart-ID': this.cartId,
+      ...(this.cartId ? { 'X-Cart-ID': this.cartId } : {}),
       ...(options.headers || {})
     };
 
@@ -143,11 +227,16 @@ class MaitoStore {
     if (res.success && res.data) {
       this.authToken = res.data.accessToken;
       this.userProfile = res.data.profile || res.data.userProfile || null;
-      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.authToken) {
+        this.setTenantItem('access_token', this.authToken);
+      }
+      if (res.data.refreshToken) {
+        this.setTenantItem('refresh_token', res.data.refreshToken);
+      }
       if (this.userProfile) {
-        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+        this.setTenantItem('user_profile', JSON.stringify(this.userProfile));
       } else {
-        localStorage.removeItem('maito_user_profile');
+        this.removeTenantItem('user_profile');
       }
 
       await this.onAuthSuccess();
@@ -165,11 +254,16 @@ class MaitoStore {
     if (res.success && res.data) {
       this.authToken = res.data.accessToken;
       this.userProfile = res.data.profile || res.data.userProfile || null;
-      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.authToken) {
+        this.setTenantItem('access_token', this.authToken);
+      }
+      if (res.data.refreshToken) {
+        this.setTenantItem('refresh_token', res.data.refreshToken);
+      }
       if (this.userProfile) {
-        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+        this.setTenantItem('user_profile', JSON.stringify(this.userProfile));
       } else {
-        localStorage.removeItem('maito_user_profile');
+        this.removeTenantItem('user_profile');
       }
 
       await this.onAuthSuccess();
@@ -192,11 +286,16 @@ class MaitoStore {
     if (res.success && res.data) {
       this.authToken = res.data.accessToken;
       this.userProfile = res.data.profile || res.data.userProfile || null;
-      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.authToken) {
+        this.setTenantItem('access_token', this.authToken);
+      }
+      if (res.data.refreshToken) {
+        this.setTenantItem('refresh_token', res.data.refreshToken);
+      }
       if (this.userProfile) {
-        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+        this.setTenantItem('user_profile', JSON.stringify(this.userProfile));
       } else {
-        localStorage.removeItem('maito_user_profile');
+        this.removeTenantItem('user_profile');
       }
 
       await this.onAuthSuccess();
@@ -237,11 +336,16 @@ class MaitoStore {
     if (res.success && res.data) {
       this.authToken = res.data.accessToken;
       this.userProfile = res.data.profile || res.data.userProfile || null;
-      if (this.authToken) localStorage.setItem('maito_auth_token', this.authToken);
+      if (this.authToken) {
+        this.setTenantItem('access_token', this.authToken);
+      }
+      if (res.data.refreshToken) {
+        this.setTenantItem('refresh_token', res.data.refreshToken);
+      }
       if (this.userProfile) {
-        localStorage.setItem('maito_user_profile', JSON.stringify(this.userProfile));
+        this.setTenantItem('user_profile', JSON.stringify(this.userProfile));
       } else {
-        localStorage.removeItem('maito_user_profile');
+        this.removeTenantItem('user_profile');
       }
 
       await this.onAuthSuccess();
@@ -266,17 +370,19 @@ class MaitoStore {
 
   logout() {
     this.authToken = null;
+    this.refreshToken = null;
     this.userProfile = null;
     this.appliedCoupon = null;
     this.savedAddresses = [];
     this.wallet = { balance: 0.00, currencyCode: 'INR', isActive: true };
     this.coinsToRedeem = 0;
-    localStorage.removeItem('maito_auth_token');
-    localStorage.removeItem('maito_user_profile');
+    this.removeTenantItem('access_token');
+    this.removeTenantItem('refresh_token');
+    this.removeTenantItem('user_profile');
     
-    // Fresh guest cart
-    localStorage.removeItem('maito_cart_id');
-    this.cartId = this.getOrCreateCartId();
+    // Fresh guest cart scoped to this tenant
+    this.removeTenantItem('cart_id');
+    this.cartId = this.hasActiveTenant() ? this.getOrCreateCartId() : null;
     this.cart = { items: [], subtotalAmount: 0, totalAmount: 0, currencyCode: 'INR' };
 
     this.notify('AUTH_CHANGED', { authenticated: false, user: null });
@@ -352,6 +458,64 @@ class MaitoStore {
       return res.data;
     }
     throw new Error(res.message || 'Failed to save address');
+  }
+
+  // --- DYNAMIC CATALOG & CATEGORY API ---
+  async fetchCategories() {
+    try {
+      const res = await this.apiFetch('/api/v1/catalog/categories');
+      if (res && res.success && Array.isArray(res.data)) {
+        return res.data;
+      }
+      return [];
+    } catch (e) {
+      console.warn('Failed to fetch categories:', e);
+      return [];
+    }
+  }
+
+  async fetchProducts(params = {}) {
+    try {
+      let queryParts = [];
+      if (typeof params === 'string') {
+        queryParts.push(`categoryId=${encodeURIComponent(params)}`);
+      } else if (params && typeof params === 'object') {
+        if (params.categoryId) queryParts.push(`categoryId=${encodeURIComponent(params.categoryId)}`);
+        if (params.categorySlug) queryParts.push(`categorySlug=${encodeURIComponent(params.categorySlug)}`);
+        if (params.currency) queryParts.push(`currency=${encodeURIComponent(params.currency)}`);
+        if (params.minPrice !== undefined && params.minPrice !== null && params.minPrice !== '') {
+          queryParts.push(`minPrice=${encodeURIComponent(params.minPrice)}`);
+        }
+        if (params.maxPrice !== undefined && params.maxPrice !== null && params.maxPrice !== '') {
+          queryParts.push(`maxPrice=${encodeURIComponent(params.maxPrice)}`);
+        }
+        if (params.dietary) queryParts.push(`dietary=${encodeURIComponent(params.dietary)}`);
+        if (params.page !== undefined && params.page !== null) queryParts.push(`page=${encodeURIComponent(params.page)}`);
+        if (params.size !== undefined && params.size !== null) queryParts.push(`size=${encodeURIComponent(params.size)}`);
+      }
+      const qs = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+      const res = await this.apiFetch(`/api/v1/catalog/products${qs}`);
+      if (res && res.success && Array.isArray(res.data)) {
+        return res.data;
+      }
+      return [];
+    } catch (e) {
+      console.warn('Failed to fetch products:', e);
+      return [];
+    }
+  }
+
+  async fetchProductBySlug(slug, currency = 'INR') {
+    try {
+      const res = await this.apiFetch(`/api/v1/catalog/products/${encodeURIComponent(slug)}?currency=${encodeURIComponent(currency)}`);
+      if (res && res.success && res.data) {
+        return res.data;
+      }
+      return null;
+    } catch (e) {
+      console.warn('Failed to fetch product by slug:', e);
+      return null;
+    }
   }
 
   // --- STORE SETTINGS & FORMATTING ---
@@ -535,8 +699,8 @@ class MaitoStore {
       // Reset cart and coins
       this.appliedCoupon = null;
       this.coinsToRedeem = 0;
-      localStorage.removeItem('maito_cart_id');
-      this.cartId = this.getOrCreateCartId();
+      this.removeTenantItem('cart_id');
+      this.cartId = this.hasActiveTenant() ? this.getOrCreateCartId() : null;
       this.cart = { items: [], subtotalAmount: 0, totalAmount: 0, currencyCode: 'INR' };
       this.notify('CART_UPDATED', this.cart);
 
@@ -632,6 +796,7 @@ class MaitoStore {
 // Global Singleton Instance
 if (typeof window !== 'undefined') {
   window.store = new MaitoStore();
+  window.MaitoStore = MaitoStore;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { MaitoStore };

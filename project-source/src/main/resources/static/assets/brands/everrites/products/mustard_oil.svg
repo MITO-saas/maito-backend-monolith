@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3D2802" />
+      <stop offset="100%" stop-color="#1F1401" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="600" height="600" rx="36" fill="url(#bgGrad)" />
+  <circle cx="300" cy="270" r="160" fill="#EAB308" opacity="0.1" />
+  <circle cx="300" cy="270" r="130" fill="#EAB308" opacity="0.15" />
+  <g transform="translate(300, 260) scale(1.6)" filter="url(#shadow)">
+    <path d="M-15,-35 L15,-35 L22,-20 L22,35 L-22,35 L-22,-20 Z" fill="#CA8A04" stroke="#FDE047" stroke-width="3"/><circle cx="0" cy="10" r="10" fill="#FEF08A"/>
+  </g>
+  <text x="300" y="470" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.5">Cold-Pressed Mustard Oil</text>
+  <text x="300" y="505" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600" fill="#EAB308" letter-spacing="1.5">KACHI GHANI RAW UNFILTERED 100% PURE</text>
+</svg>
