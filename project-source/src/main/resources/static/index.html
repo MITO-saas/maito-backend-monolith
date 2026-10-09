@@ -2397,9 +2397,15 @@ const ComponentRegistry = {
       await loadCatalogProducts(activeCatalogCategoryId);
     }
 
-    async function loadCatalogProducts(categoryId = null) {
+    async function loadCatalogProducts(categoryId = null, retryCount = 0) {
       const grid = document.getElementById('dynamic-product-grid');
       if (!grid) return;
+
+      // Ensure active tenant is explicitly bound
+      const tenantParam = new URLSearchParams(window.location.search).get('tenant');
+      if (tenantParam && window.store && !window.store.hasActiveTenant()) {
+        window.store.setTenant(tenantParam);
+      }
 
       grid.innerHTML = `
         <div class="col-span-full py-12 flex flex-col items-center justify-center space-y-3">
@@ -2419,6 +2425,12 @@ const ComponentRegistry = {
         if (loadingState) loadingState.remove();
 
         if (!products || products.length === 0) {
+          // If 0 products and retryCount < 1, give backend 1 second to finish seeding and retry
+          if (retryCount < 1) {
+            await new Promise(r => setTimeout(r, 1200));
+            return loadCatalogProducts(categoryId, retryCount + 1);
+          }
+
           grid.innerHTML = `
             <div class="col-span-full py-16 text-center bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
               <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
@@ -2436,10 +2448,18 @@ const ComponentRegistry = {
         if (window.lucide) window.lucide.createIcons();
       } catch (err) {
         console.error('Failed to load catalog products:', err);
+
+        // Auto-retry once on network/boot failure
+        if (retryCount < 2) {
+          await new Promise(r => setTimeout(r, 1500));
+          return loadCatalogProducts(categoryId, retryCount + 1);
+        }
+
         grid.innerHTML = `
           <div class="col-span-full py-12 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100 p-6">
             <p class="text-sm font-semibold">Unable to load catalog from database.</p>
-            <button onclick="loadCatalogProducts('${categoryId || ''}')" class="mt-3 px-4 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">Retry</button>
+            <p class="text-xs text-red-400 mt-1">${err && err.message ? err.message : 'Please ensure the application is running.'}</p>
+            <button onclick="loadCatalogProducts('${categoryId || ''}', 0)" class="mt-3 px-4 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 shadow-sm transition-all active:scale-95">Retry</button>
           </div>
         `;
       }
