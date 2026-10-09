@@ -7,6 +7,8 @@ import com.maito.catalog.api.dto.CreateVariantCommand;
 import com.maito.catalog.api.dto.PriceTierDto;
 import com.maito.catalog.api.dto.ProductDetailResponse;
 import com.maito.catalog.api.dto.ProductSummaryDto;
+import com.maito.catalog.api.dto.StorefrontVariantDto;
+import java.math.RoundingMode;
 import com.maito.catalog.api.dto.UpdateProductCommand;
 import com.maito.catalog.api.dto.VariantDto;
 import com.maito.catalog.api.service.CatalogService;
@@ -125,8 +127,8 @@ public class CatalogServiceImpl implements CatalogService {
         }
 
         String targetCurrency = (currency != null && !currency.isBlank()) ? currency.trim().toUpperCase() : "INR";
-        Map<UUID, String> categorySlugMap = categoryRepository.findAll().stream()
-                .collect(Collectors.toMap(CatalogCategory::getId, CatalogCategory::getSlug, (a, b) -> a));
+        Map<UUID, CatalogCategory> categoryMap = categoryRepository.findAll().stream()
+                .collect(Collectors.toMap(CatalogCategory::getId, c -> c, (a, b) -> a));
 
         List<ProductSummaryDto> summaries = new ArrayList<>();
 
@@ -154,21 +156,86 @@ public class CatalogServiceImpl implements CatalogService {
             }
 
             String primaryImage = extractPrimaryImage(variants);
+            if (primaryImage == null || primaryImage.isBlank()) {
+                primaryImage = "/assets/brands/placeholder-product.svg";
+            }
             List<String> dietaryTags = extractDietaryTags(p.getAttributes());
-            String catSlug = p.getCategoryId() != null ? categorySlugMap.getOrDefault(p.getCategoryId(), "") : "";
+            CatalogCategory cat = p.getCategoryId() != null ? categoryMap.get(p.getCategoryId()) : null;
+            String catSlug = (cat != null) ? cat.getSlug() : "";
+            String catName = (cat != null) ? cat.getName() : "Catalog";
+
+            List<StorefrontVariantDto> storefrontVariants = new ArrayList<>();
+            BigDecimal minP = null;
+            BigDecimal maxP = null;
+
+            for (CatalogProductVariant v : variants) {
+                Map<String, PriceTierDto> parsedTiers = parsePricingTiers(v.getPricingTiers());
+                PriceTierDto tier = parsedTiers.getOrDefault(targetCurrency, parsedTiers.get("INR"));
+                BigDecimal salePrice = (tier != null && tier.salePrice() != null) ? tier.salePrice() : BigDecimal.ZERO;
+                BigDecimal compareAtPrice = (tier != null && tier.mrp() != null) ? tier.mrp() : salePrice;
+
+                if (minP == null || salePrice.compareTo(minP) < 0) {
+                    minP = salePrice;
+                }
+                if (maxP == null || compareAtPrice.compareTo(maxP) > 0) {
+                    maxP = compareAtPrice;
+                }
+
+                List<InventoryLevel> inventoryList = inventoryRepository.findByVariantId(v.getId());
+                int availableStock = inventoryList.stream().mapToInt(InventoryLevel::getAvailableStock).sum();
+
+                String variantTitle = null;
+                if (v.getVariantAttributes() != null) {
+                    if (v.getVariantAttributes().containsKey("title")) {
+                        variantTitle = String.valueOf(v.getVariantAttributes().get("title"));
+                    } else if (v.getVariantAttributes().containsKey("packSize")) {
+                        variantTitle = String.valueOf(v.getVariantAttributes().get("packSize"));
+                    } else if (v.getVariantAttributes().containsKey("size")) {
+                        variantTitle = String.valueOf(v.getVariantAttributes().get("size"));
+                    }
+                }
+                if (variantTitle == null || variantTitle.isBlank()) {
+                    variantTitle = (v.getSku() != null) ? v.getSku() : p.getName();
+                }
+
+                BigDecimal taxRate = v.getTaxRate() != null ? v.getTaxRate()
+                        : (p.getTaxRatePercent() != null ? p.getTaxRatePercent().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+                String hsn = (v.getHsnCode() != null && !v.getHsnCode().isBlank()) ? v.getHsnCode() : p.getHsnCode();
+
+                storefrontVariants.add(new StorefrontVariantDto(
+                        v.getId(),
+                        v.getSku(),
+                        variantTitle,
+                        salePrice,
+                        compareAtPrice,
+                        availableStock,
+                        taxRate,
+                        hsn
+                ));
+            }
+
+            BigDecimal effectiveMinPrice = minP != null ? minP : (priceRange != null ? priceRange.salePrice() : BigDecimal.ZERO);
+            BigDecimal effectiveMaxPrice = maxP != null ? maxP : (priceRange != null ? priceRange.mrp() : effectiveMinPrice);
+            String desc = (p.getDescription() != null && !p.getDescription().isBlank()) ? p.getDescription() : p.getShortDescription();
 
             summaries.add(new ProductSummaryDto(
                     p.getId(),
                     p.getSlug(),
                     p.getName(),
+                    p.getName(),
                     p.getBrand(),
                     p.getShortDescription(),
+                    desc,
                     p.getCategoryId(),
                     catSlug,
+                    catName,
                     priceRange,
+                    effectiveMinPrice,
+                    effectiveMaxPrice,
                     primaryImage,
                     dietaryTags,
-                    p.getIsPublished()
+                    p.getIsPublished(),
+                    storefrontVariants
             ));
         }
 

@@ -262,7 +262,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch"
+                "value": "{{tenant_id}}"
               }
             ],
             "url": {
@@ -396,7 +396,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch",
+                "value": "{{tenant_id}}",
                 "type": "text"
               },
               {
@@ -452,7 +452,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch",
+                "value": "{{tenant_id}}",
                 "type": "text"
               },
               {
@@ -505,7 +505,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch",
+                "value": "{{tenant_id}}",
                 "type": "text"
               },
               {
@@ -689,7 +689,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@mitocrunch.com\",\n  \"password\": \"CrunchAdmin@2026\"\n}"
+              "raw": "{\n  \"email\": \"admin@mitocrunch.com\",\n  \"password\": \"Admin@2026\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/login",
@@ -2463,7 +2463,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch",
+                "value": "{{tenant_id}}",
                 "type": "text"
               },
               {
@@ -2493,7 +2493,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch",
+                "value": "{{tenant_id}}",
                 "type": "text"
               },
               {
@@ -2533,7 +2533,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch",
+                "value": "{{tenant_id}}",
                 "type": "text"
               },
               {
@@ -2573,7 +2573,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch",
+                "value": "{{tenant_id}}",
                 "type": "text"
               },
               {
@@ -2607,7 +2607,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch",
+                "value": "{{tenant_id}}",
                 "type": "text"
               },
               {
@@ -2655,7 +2655,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2691,7 +2691,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2729,7 +2729,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2762,7 +2762,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2804,7 +2804,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2834,7 +2834,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2877,7 +2877,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2913,7 +2913,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2951,7 +2951,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -2980,7 +2980,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -3023,7 +3023,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -3066,7 +3066,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -3105,7 +3105,7 @@
                 "header": [
                   {
                     "key": "X-Tenant-ID",
-                    "value": "{{tenant_slug}}"
+                    "value": "{{tenant_id}}"
                   },
                   {
                     "key": "Authorization",
@@ -3155,7 +3155,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3187,7 +3187,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3215,7 +3215,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3247,7 +3247,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3279,7 +3279,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3317,7 +3317,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3347,7 +3347,7 @@
             "header": [
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3394,7 +3394,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3433,7 +3433,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Authorization",
@@ -3544,7 +3544,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "{{tenant_slug}}"
+                "value": "{{tenant_id}}"
               }
             ]
           }
@@ -3750,7 +3750,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch"
+                "value": "{{tenant_id}}"
               }
             ],
             "body": {
@@ -3784,7 +3784,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "Stripe-Signature",
@@ -3823,7 +3823,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "X-Delhivery-Signature",
@@ -3862,7 +3862,7 @@
               },
               {
                 "key": "X-Tenant-ID",
-                "value": "mito_crunch"
+                "value": "{{tenant_id}}"
               },
               {
                 "key": "X-Webhook-Signature",
@@ -4068,12 +4068,284 @@
           }
         }
       ]
+    },
+    {
+      "name": "Phase 19: Dynamic Multi-Tenant Operations & Pluggable Configurations",
+      "item": [
+        {
+          "name": "1. Get Tenant Payment Gateway Configs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/payments/configs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "payments",
+                "configs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Upsert Tenant Payment Gateway Config",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"RAZORPAY\",\n  \"isEnabled\": true,\n  \"isTestMode\": true,\n  \"keyId\": \"rzp_test_tenanta_111\",\n  \"secretKey\": \"rzp_sec_tenanta_111\",\n  \"webhookSecret\": \"rzp_whsec_tenanta_111\",\n  \"merchantAccountId\": \"acc_tenanta_111\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/payments/configs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "payments",
+                "configs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. List Configured Logistics Carriers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/fulfillment/carriers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "fulfillment",
+                "carriers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Update Carrier Configuration and Credentials",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isEnabled\": true,\n  \"isTestMode\": true,\n  \"apiKey\": \"dlv_test_key_live\",\n  \"clientName\": \"DELHIVERY_SURFACE\",\n  \"customSettings\": {\n    \"warehousePickupCode\": \"WH-DEL-01\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/fulfillment/carriers/{{carrier_type}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "fulfillment",
+                "carriers",
+                "{{carrier_type}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Cancel Order and Release Reserved Stock (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-ID",
+                "value": "{{tenant_id}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/orders/{{order_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "orders",
+                "{{order_id}}",
+                "cancel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Direct Inbound Razorpay Webhook with Tenant Route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Razorpay-Signature",
+                "value": "{{razorpay_signature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"payment.captured\",\n  \"payload\": {\n    \"payment\": {\n      \"entity\": {\n        \"id\": \"pay_test_rzp_auto_999\",\n        \"order_id\": \"order_test_rzp_auto_999\",\n        \"amount\": 14900,\n        \"currency\": \"INR\",\n        \"status\": \"captured\"\n      }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/webhook/{{tenant_slug}}/razorpay",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "webhook",
+                "{{tenant_slug}}",
+                "razorpay"
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Direct Inbound Stripe Webhook with Tenant Route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Stripe-Signature",
+                "value": "{{stripe_signature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_test_stripe_wh_001\",\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"pi_test_stripe_wh_001\",\n      \"amount\": 14900,\n      \"currency\": \"inr\",\n      \"status\": \"succeeded\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/payments/webhook/{{tenant_slug}}/stripe",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "webhook",
+                "{{tenant_slug}}",
+                "stripe"
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
     {
       "key": "base_url",
       "value": "http://localhost:8080"
+    },
+    {
+      "key": "tenant_id",
+      "value": "mitocrunch"
+    },
+    {
+      "key": "tenant_slug",
+      "value": "mitocrunch"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "bearerToken",
+      "value": ""
+    },
+    {
+      "key": "order_id",
+      "value": ""
+    },
+    {
+      "key": "carrier_type",
+      "value": "DELHIVERY"
     }
   ]
 }
